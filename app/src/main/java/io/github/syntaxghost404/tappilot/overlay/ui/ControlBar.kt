@@ -1,0 +1,244 @@
+package io.github.syntaxghost404.tappilot.overlay.ui
+
+import android.os.SystemClock
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Undo
+import androidx.compose.material.icons.rounded.AdsClick
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.Swipe
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.FloatingToolbarVerticalFabPosition
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalFloatingToolbar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
+import androidx.graphics.shapes.Morph
+import io.github.syntaxghost404.tappilot.R
+import io.github.syntaxghost404.tappilot.core.data.ControlSize
+import io.github.syntaxghost404.tappilot.core.engine.RunProgress
+import io.github.syntaxghost404.tappilot.core.model.StopMode
+import io.github.syntaxghost404.tappilot.overlay.OverlaySession
+import io.github.syntaxghost404.tappilot.ui.components.MorphShape
+import io.github.syntaxghost404.tappilot.ui.format.Durations
+import kotlinx.coroutines.delay
+
+internal interface ControlActions {
+    fun onToggleRun()
+    fun onAddTap()
+    fun onAddSwipe()
+    fun onRemoveLast()
+    fun onOpenSettings()
+    fun onOpenSequences()
+    fun onClose()
+}
+
+/**
+ * The floating controls: a vertical floating toolbar with the play button as its FAB. While a run
+ * is going the toolbar collapses into the FAB, which grows and shows live progress.
+ */
+@Composable
+internal fun ControlBar(session: OverlaySession, actions: ControlActions) {
+    val scale = when (session.settings.controlSize) {
+        ControlSize.Compact -> 0.86f
+        ControlSize.Regular -> 1f
+        ControlSize.Large -> 1.16f
+    }
+    val density = LocalDensity.current
+    CompositionLocalProvider(LocalDensity provides Density(density.density * scale, density.fontScale)) {
+        val hasSteps = session.script.steps.isNotEmpty()
+        VerticalFloatingToolbar(
+            expanded = !session.running,
+            modifier = Modifier.padding(6.dp),
+            colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
+            floatingActionButtonPosition = FloatingToolbarVerticalFabPosition.Top,
+            expandedShadowElevation = 3.dp,
+            collapsedShadowElevation = 3.dp,
+            floatingActionButton = { PlayButton(session, actions::onToggleRun) },
+        ) {
+            if (session.isMulti) {
+                ToolbarButton(Icons.Rounded.AdsClick, stringResource(R.string.overlay_add_tap), actions::onAddTap)
+                ToolbarButton(Icons.Rounded.Swipe, stringResource(R.string.overlay_add_swipe), actions::onAddSwipe)
+                ToolbarButton(
+                    Icons.AutoMirrored.Rounded.Undo,
+                    stringResource(R.string.overlay_remove_last),
+                    actions::onRemoveLast,
+                    enabled = hasSteps,
+                )
+            }
+            ToolbarButton(Icons.Rounded.Tune, stringResource(R.string.overlay_settings), actions::onOpenSettings)
+            if (session.isMulti) {
+                ToolbarButton(Icons.Rounded.FolderOpen, stringResource(R.string.overlay_sequences), actions::onOpenSequences)
+            }
+            ToolbarButton(Icons.Rounded.Close, stringResource(R.string.overlay_close), actions::onClose)
+        }
+    }
+}
+
+@Composable
+private fun ToolbarButton(icon: ImageVector, label: String, onClick: () -> Unit, enabled: Boolean = true) {
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        shapes = IconButtonDefaults.shapes(),
+    ) {
+        Icon(icon, contentDescription = label)
+    }
+}
+
+/** Play/stop. Morphs from a scalloped "go" shape to a calm square while running. */
+@Composable
+private fun PlayButton(session: OverlaySession, onClick: () -> Unit) {
+    val running = session.running
+    val morph = remember { Morph(MaterialShapes.Cookie9Sided, MaterialShapes.Square) }
+    val morphProgress by animateFloatAsState(
+        targetValue = if (running) 1f else 0f,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "fab-morph",
+    )
+    // Cookie9Sided repeats every 40 degrees, so a 40 degree turn lands on an identical outline.
+    val spin = remember { Animatable(0f) }
+    val spinSpec = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
+    LaunchedEffect(running) {
+        if (!running) spin.animateTo(spin.value + 40f, spinSpec)
+    }
+
+    var celebrating by remember { mutableStateOf(false) }
+    LaunchedEffect(session.finishedCount) {
+        if (session.finishedCount > 0) {
+            celebrating = true
+            delay(1_600)
+            celebrating = false
+        }
+    }
+    val pop by animateFloatAsState(
+        targetValue = if (celebrating) 1.08f else 1f,
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "fab-pop",
+    )
+
+    val label = stringResource(if (running) R.string.overlay_stop else R.string.overlay_play)
+    FloatingToolbarDefaults.VibrantFloatingActionButton(
+        onClick = onClick,
+        modifier = Modifier
+            .scale(pop)
+            .semantics { contentDescription = label },
+        shape = MorphShape(morph, morphProgress, rotationDegrees = spin.value * (1f - morphProgress)),
+    ) {
+        val scaleSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+        val fadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+        AnimatedContent(
+            targetState = when {
+                celebrating && !running -> FabFace.Done
+                running -> FabFace.Running
+                else -> FabFace.Idle
+            },
+            transitionSpec = {
+                (scaleIn(scaleSpec, initialScale = 0.6f) + fadeIn(fadeSpec)) togetherWith
+                    (scaleOut(scaleSpec, targetScale = 0.6f) + fadeOut(fadeSpec))
+            },
+            label = "fab-face",
+        ) { face ->
+            when (face) {
+                FabFace.Idle -> Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(28.dp))
+                FabFace.Done -> Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(28.dp))
+                FabFace.Running -> RunningFace(session)
+            }
+        }
+    }
+}
+
+private enum class FabFace { Idle, Running, Done }
+
+@Composable
+private fun RunningFace(session: OverlaySession) {
+    val progress = session.progress
+    val rule = session.script.stopRule
+    // Time-based limits tick on their own so the countdown stays live between slow actions.
+    var elapsed by remember { mutableLongStateOf(progress.elapsedMs) }
+    LaunchedEffect(session.runStartedAt) {
+        while (true) {
+            elapsed = SystemClock.elapsedRealtime() - session.runStartedAt
+            delay(250)
+        }
+    }
+    val fraction = when (rule.mode) {
+        StopMode.Duration -> (elapsed.toFloat() / rule.durationMs).coerceIn(0f, 1f)
+        else -> progress.fraction
+    }
+    Box(Modifier.fillMaxSize().padding(6.dp), contentAlignment = Alignment.Center) {
+        val color = LocalContentColor.current
+        if (fraction != null) {
+            CircularWavyProgressIndicator(
+                progress = { fraction },
+                modifier = Modifier.fillMaxSize(),
+                color = color,
+                trackColor = color.copy(alpha = 0.22f),
+            )
+        } else {
+            CircularWavyProgressIndicator(
+                modifier = Modifier.fillMaxSize(),
+                color = color,
+                trackColor = color.copy(alpha = 0.22f),
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Icon(Icons.Rounded.Stop, contentDescription = null, modifier = Modifier.size(22.dp))
+            Text(
+                runningLabel(session, progress, elapsed),
+                style = MaterialTheme.typography.labelSmallEmphasized,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+private fun runningLabel(session: OverlaySession, progress: RunProgress, elapsedMs: Long): String {
+    val rule = session.script.stopRule
+    return when (rule.mode) {
+        StopMode.Duration -> Durations.clock((rule.durationMs - elapsedMs).coerceAtLeast(0L))
+        StopMode.Cycles -> "${Durations.count(progress.cycles.toLong())}/${Durations.count(rule.cycles.toLong())}"
+        StopMode.Never -> Durations.count(progress.actions)
+    }
+}

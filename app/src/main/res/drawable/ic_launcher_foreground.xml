@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Original Tap Pilot mark: an open target ring with a pointer entering through the gap. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.8604"
+        android:scaleY="0.8604"
+        android:translateX="11.842"
+        android:translateY="7.600">
+        <path
+            android:pathData="M53.60,67.44 A19,19 0 1 1 67.44,53.60"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round"
+            android:strokeWidth="6.5" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M42.8,49 a6.2,6.2 0 1,0 12.4,0 a6.2,6.2 0 1,0 -12.4,0" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M55.00,55.00 L55.00,76.42 L60.30,71.73 L64.79,81.11 L68.87,79.28 L64.49,70.10 L71.12,70.10 Z"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineJoin="round"
+            android:strokeWidth="2.4" />
+    </group>
+</vector>

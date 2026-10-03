@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tap Pilot</string>
+    <string name="app_tagline">Taps and swipes on autopilot</string>
+
+    <!-- Accessibility service (shown in system settings) -->
+    <string name="service_label">Tap Pilot</string>
+    <string name="service_intro">Turn on to let Tap Pilot tap and swipe for you.</string>
+    <string name="service_description">Performs the taps and swipes you set up in Tap Pilot.\n\nThis permission is used only to show the floating controls and to perform gestures at the points you choose. Tap Pilot does not read what is on your screen, does not see what you type and does not collect or share any data. It has no internet access.</string>
+
+    <!-- Quick Settings tile and launcher shortcuts -->
+    <string name="tile_label">Tap Pilot</string>
+    <string name="tile_off">Turn on in app</string>
+    <string name="tile_ready">Show controls</string>
+    <string name="tile_running">Running</string>
+    <string name="shortcut_single_short">Single point</string>
+    <string name="shortcut_single_long">Start single point</string>
+    <string name="shortcut_multi_short">New sequence</string>
+    <string name="shortcut_multi_long">Start a new sequence</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_sequences">Sequences</string>
+    <string name="nav_settings">Settings</string>
+    <string name="navigate_up">Back</string>
+    <string name="more_options">More options</string>
+
+    <!-- Common actions -->
+    <string name="action_start">Start</string>
+    <string name="action_stop">Stop</string>
+    <string name="action_done">Done</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_save">Save</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_duplicate">Duplicate</string>
+    <string name="action_export">Export</string>
+    <string name="action_export_all">Export all</string>
+    <string name="action_import">Import</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_edit_on_screen">Edit on screen</string>
+    <string name="action_play">Play</string>
+    <string name="action_turn_on">Turn on</string>
+    <string name="action_open_settings">Open settings</string>
+    <string name="action_hide_controls">Hide controls</string>
+    <string name="action_new_sequence">New sequence</string>
+    <string name="action_see_all">See all</string>
+    <string name="action_settings">Settings</string>
+
+    <!-- Home -->
+    <string name="home_status_ready">Ready when you are</string>
+    <string name="home_status_controls">Floating controls are on</string>
+    <string name="home_status_running">Running · %1$s</string>
+    <string name="home_status_off">Accessibility service is off</string>
+    <string name="home_service_off_title">One step left</string>
+    <string name="home_service_off_body">Turn on the Tap Pilot accessibility service so it can tap and swipe for you.</string>
+    <string name="home_controls_title">Controls are on screen</string>
+    <string name="home_controls_body">Switch to the app you want to automate, then press play on the floating controls.</string>
+    <string name="mode_single_title">Single point</string>
+    <string name="mode_single_body">One target that taps at a steady rhythm.</string>
+    <string name="mode_multi_title">Sequence</string>
+    <string name="mode_multi_body">Taps and swipes in several places, played in order.</string>
+    <string name="home_recent">Recent sequences</string>
+
+    <!-- Summaries -->
+    <string name="summary_every">Every %1$s</string>
+    <string name="summary_forever">Until stopped</string>
+    <string name="summary_for">For %1$s</string>
+    <string name="summary_varied">Varied</string>
+    <plurals name="summary_cycles">
+        <item quantity="one">%1$s cycle</item>
+        <item quantity="other">%1$s cycles</item>
+    </plurals>
+    <plurals name="step_count">
+        <item quantity="one">%1$d step</item>
+        <item quantity="other">%1$d steps</item>
+    </plurals>
+    <plurals name="tap_count">
+        <item quantity="one">%1$d tap</item>
+        <item quantity="other">%1$d taps</item>
+    </plurals>
+    <plurals name="swipe_count">
+        <item quantity="one">%1$d swipe</item>
+        <item quantity="other">%1$d swipes</item>
+    </plurals>
+    <plurals name="sequence_count">
+        <item quantity="one">%1$d sequence</item>
+        <item quantity="other">%1$d sequences</item>
+    </plurals>
+    <plurals name="action_count">
+        <item quantity="one">%1$s action</item>
+        <item quantity="other">%1$s actions</item>
+    </plurals>
+
+    <!-- Durations -->
+    <string name="unit_ms">ms</string>
+    <string name="unit_s">s</string>
+    <string name="unit_min">min</string>
+    <string name="unit_h">h</string>
+    <string name="duration_ms">%1$s ms</string>
+    <string name="duration_s">%1$s s</string>
+    <string name="duration_min">%1$s min</string>
+    <string name="duration_min_s">%1$s min %2$s s</string>
+    <string name="duration_h_min">%1$s h %2$s min</string>
+    <string name="duration_h">%1$s h</string>
+
+    <!-- Sequences -->
+    <string name="sequences_title">Sequences</string>
+    <string name="sequences_empty_title">No sequences yet</string>
+    <string name="sequences_empty_body">Place taps and swipes anywhere on screen, then replay them whenever you like.</string>
+    <string name="default_sequence_name">Sequence</string>
+    <string name="copy_suffix">(copy)</string>
+    <string name="sequence_deleted">“%1$s” deleted</string>
+    <string name="rename_title">Rename sequence</string>
+    <string name="name_label">Name</string>
+    <string name="name_empty_error">Give it a name</string>
+    <plurals name="import_success">
+        <item quantity="one">Imported %1$d sequence</item>
+        <item quantity="other">Imported %1$d sequences</item>
+    </plurals>
+    <string name="import_not_backup">That file isn’t a Tap Pilot backup</string>
+    <string name="import_newer_version">This backup needs a newer version of Tap Pilot</string>
+    <string name="import_empty">The backup has no sequences in it</string>
+    <string name="import_failed">Couldn’t read that file</string>
+    <plurals name="export_success">
+        <item quantity="one">Exported %1$d sequence</item>
+        <item quantity="other">Exported %1$d sequences</item>
+    </plurals>
+    <string name="export_failed">Couldn’t save the file</string>
+    <string name="export_nothing">There’s nothing to export yet</string>
+
+    <!-- Sequence editor -->
+    <string name="editor_steps">Steps</string>
+    <string name="editor_no_steps_title">No steps yet</string>
+    <string name="editor_no_steps_body">Use Edit on screen to place taps and swipes exactly where you need them.</string>
+    <string name="editor_when_to_stop">When to stop</string>
+    <string name="editor_not_found">This sequence no longer exists.</string>
+    <string name="step_tap">Tap</string>
+    <string name="step_long_press">Long press</string>
+    <string name="step_swipe">Swipe</string>
+    <string name="step_position">at %1$d, %2$d</string>
+    <string name="step_swipe_path">%1$d, %2$d → %3$d, %4$d</string>
+    <string name="step_timing_tap">Hold %1$s · then wait %2$s</string>
+    <string name="step_timing_swipe">Over %1$s · then wait %2$s</string>
+    <string name="move_up">Move up</string>
+    <string name="move_down">Move down</string>
+    <string name="edit_step">Edit step</string>
+
+    <!-- Step and timing fields -->
+    <string name="step_editor_tap_title">Tap %1$d</string>
+    <string name="step_editor_swipe_title">Swipe %1$d</string>
+    <string name="field_wait_after">Wait after</string>
+    <string name="field_wait_after_support">Pause before the next step starts</string>
+    <string name="field_hold">Press duration</string>
+    <string name="field_hold_support">Hold for 500 ms or more for a long press</string>
+    <string name="field_swipe_duration">Swipe duration</string>
+    <string name="field_swipe_duration_support">Swipes of 300 ms or more register most reliably</string>
+    <string name="field_interval">Tap every</string>
+    <string name="field_interval_support">Time between one tap and the next</string>
+    <string name="field_position">Position</string>
+    <string name="warning_fast">Pauses under 40 ms can make some devices stutter.</string>
+    <string name="action_delete_step">Delete step</string>
+    <string name="field_unit">Unit</string>
+
+    <!-- Stop rule -->
+    <string name="stop_never">No limit</string>
+    <string name="stop_time">Time</string>
+    <string name="stop_cycles">Cycles</string>
+    <string name="stop_never_support">Keeps going until you press stop.</string>
+    <string name="stop_time_label">Run for</string>
+    <string name="stop_cycles_label">Number of cycles</string>
+    <string name="stop_cycles_support_single">Each tap counts as one cycle.</string>
+    <string name="stop_cycles_support_multi">One cycle plays every step once.</string>
+    <string name="hours_short">Hours</string>
+    <string name="minutes_short">Minutes</string>
+    <string name="seconds_short">Seconds</string>
+
+    <!-- Variation -->
+    <string name="variation_title">Natural variation</string>
+    <string name="variation_position">Randomize tap position</string>
+    <string name="variation_position_support">Each tap lands somewhere inside its target</string>
+    <string name="variation_timing">Randomize timing</string>
+    <string name="variation_timing_value">Up to ±%1$d%%</string>
+    <string name="variation_timing_off">Exact timing</string>
+
+    <!-- Floating controls -->
+    <string name="overlay_play">Start</string>
+    <string name="overlay_stop">Stop</string>
+    <string name="overlay_add_tap">Add tap</string>
+    <string name="overlay_add_swipe">Add swipe</string>
+    <string name="overlay_remove_last">Remove last step</string>
+    <string name="overlay_settings">Settings</string>
+    <string name="overlay_sequences">Sequences</string>
+    <string name="overlay_close">Close controls</string>
+    <string name="overlay_need_target">Add a tap or swipe first</string>
+    <string name="overlay_finished">Finished</string>
+    <string name="overlay_settings_single">Single point</string>
+    <string name="overlay_settings_multi">Sequence settings</string>
+    <string name="overlay_open_title">Open a sequence</string>
+    <string name="overlay_current">Open now</string>
+    <string name="overlay_no_saved">Saved sequences will appear here.</string>
+    <string name="target_label">Target %1$d</string>
+    <string name="target_single">Tap target</string>
+    <string name="swipe_end_label">End of swipe %1$d</string>
+    <string name="service_lost">Tap Pilot lost its accessibility connection</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="settings_dynamic_color">Dynamic color</string>
+    <string name="settings_dynamic_color_support">Use colors from your wallpaper</string>
+    <string name="settings_controls">Floating controls</string>
+    <string name="settings_control_size">Control size</string>
+    <string name="size_compact">Compact</string>
+    <string name="size_regular">Regular</string>
+    <string name="size_large">Large</string>
+    <string name="settings_target_size">Target size</string>
+    <string name="settings_tap_feedback">Show tap ripples</string>
+    <string name="settings_tap_feedback_support">Briefly highlight each tap while running</string>
+    <string name="settings_keep_screen_on">Keep screen on</string>
+    <string name="settings_keep_screen_on_support">While the floating controls are visible</string>
+    <string name="settings_running">While running</string>
+    <string name="settings_stop_screen_off">Stop when the screen turns off</string>
+    <string name="settings_stop_screen_off_support">Prevents taps from continuing in your pocket</string>
+    <string name="settings_defaults">New steps</string>
+    <string name="settings_help">Help and info</string>
+    <string name="settings_how_to">How to use</string>
+    <string name="settings_troubleshooting">Troubleshooting</string>
+    <string name="settings_privacy">Privacy</string>
+    <string name="settings_about">About</string>
+    <string name="settings_backup">Backup</string>
+    <string name="settings_default_delay">Wait after each step</string>
+    <string name="settings_default_hold">Press duration</string>
+    <string name="settings_default_swipe">Swipe duration</string>
+    <string name="settings_target_size_value">%1$d dp</string>
+    <string name="action_reset_target">Move target back to the centre</string>
+    <string name="target_reset_done">The target will start in the centre next time</string>
+    <string name="settings_export_support">Save all sequences to a file</string>
+    <string name="settings_import_support">Add sequences from a backup file</string>
+    <string name="version_label">Version %1$s</string>
+
+    <!-- Onboarding and permission -->
+    <string name="onboarding_title">Put taps on autopilot</string>
+    <string name="onboarding_body">Place targets anywhere on screen and Tap Pilot taps and swipes for you, at exactly the rhythm you choose.</string>
+    <string name="onboarding_feature_single">Tap one spot at a steady rhythm</string>
+    <string name="onboarding_feature_multi">Chain taps and swipes into sequences</string>
+    <string name="onboarding_feature_private">Works offline. Collects nothing.</string>
+    <string name="action_get_started">Get started</string>
+    <string name="disclosure_title">Before you turn it on</string>
+    <string name="disclosure_body">Tap Pilot uses the Android Accessibility Service API to perform the taps and swipes you set up and to show its floating controls. That is the only thing it is used for.</string>
+    <string name="disclosure_point_gestures">Performs gestures only where you place targets</string>
+    <string name="disclosure_point_no_reading">Never reads your screen or what you type</string>
+    <string name="disclosure_point_no_data">Collects and shares no data, and has no internet access</string>
+    <string name="action_agree_continue">Agree and continue</string>
+    <string name="action_not_now">Not now</string>
+    <string name="setup_title">Turn on the service</string>
+    <string name="setup_body">Android will ask you to confirm. You can turn it off at any time in the same place.</string>
+    <string name="setup_step_open">Tap Open settings below</string>
+    <string name="setup_step_find">Find Tap Pilot, often under Downloaded apps or Installed apps</string>
+    <string name="setup_step_enable">Turn on Use Tap Pilot and confirm</string>
+    <string name="setup_waiting">Waiting for the service…</string>
+    <string name="setup_connected">All set</string>
+    <string name="setup_restricted_title">Switch greyed out?</string>
+    <string name="setup_restricted_body">If you installed Tap Pilot from a file, Android may restrict it. Open App info, tap the ⋮ menu, choose Allow restricted settings, then try again.</string>
+    <string name="action_app_info">Open app info</string>
+
+    <!-- Troubleshooting -->
+    <string name="ts_service">Accessibility service</string>
+    <string name="ts_service_connected">On and connected</string>
+    <string name="ts_service_stuck">Turned on, but not responding</string>
+    <string name="ts_service_off">Off</string>
+    <string name="ts_service_hint">If gestures stop working, turn the service off and on again.</string>
+    <string name="ts_battery">Battery optimization</string>
+    <string name="ts_battery_optimized">Optimized. Android may pause Tap Pilot in the background.</string>
+    <string name="ts_battery_unrestricted">Not optimized</string>
+    <string name="ts_battery_action">Battery settings</string>
+    <string name="ts_restricted">Switch greyed out</string>
+    <string name="ts_oem">Manufacturer power saving</string>
+    <string name="ts_oem_body">Some phones stop background services aggressively. In your device’s battery or app settings, allow Tap Pilot to run in the background or autostart.</string>
+    <string name="ts_overlap">Taps hitting the controls</string>
+    <string name="ts_overlap_body">Keep targets clear of the floating controls. While running they shrink to one button and move aside automatically if a target sits underneath.</string>
+    <string name="ts_not_registering">Taps not registering</string>
+    <string name="ts_not_registering_body">Some apps ignore extremely short taps. Raise the press duration to 30–50 ms, or make swipes slower.</string>
+
+    <!-- How to use -->
+    <string name="howto_title">How to use</string>
+    <string name="howto_single_title">Single point</string>
+    <string name="howto_single_body">Start single point, drag the target onto the spot you want, then press play. Open settings on the controls to change the rhythm or set a limit.</string>
+    <string name="howto_multi_title">Sequences</string>
+    <string name="howto_multi_body">Add taps and swipes from the floating controls. Each one gets a number, and they play in that order. Drag targets to move them and tap a target to change its timing. Changes save automatically.</string>
+    <string name="howto_controls_title">The floating controls</string>
+    <string name="howto_control_play">Start or stop. The ring shows progress toward your limit.</string>
+    <string name="howto_control_add_tap">Add a tap target in the middle of the screen.</string>
+    <string name="howto_control_add_swipe">Add a swipe. Drag its start and end points.</string>
+    <string name="howto_control_remove">Remove the most recent step.</string>
+    <string name="howto_control_settings">Timing, limits and natural variation.</string>
+    <string name="howto_control_sequences">Switch to another saved sequence.</string>
+    <string name="howto_control_close">Hide the controls and targets.</string>
+    <string name="howto_control_drag">Drag the controls from any empty spot to move them.</string>
+
+    <!-- Privacy and about -->
+    <string name="privacy_title">Privacy</string>
+    <string name="privacy_body">Tap Pilot works entirely on your device. It has no internet permission, no ads, no analytics and no accounts.\n\nThe accessibility service is used only to show the floating controls and perform the gestures you set up. It does not read screen content or keystrokes.\n\nYour sequences are stored on this device and only leave it when you export them.</string>
+    <string name="about_title">About</string>
+    <string name="about_body">Tap Pilot is an auto clicker built with Jetpack Compose and Material 3 Expressive.</string>
+</resources>
