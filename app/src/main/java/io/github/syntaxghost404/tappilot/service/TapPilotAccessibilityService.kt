@@ -17,6 +17,7 @@ import io.github.syntaxghost404.tappilot.core.engine.GesturePlan
 import io.github.syntaxghost404.tappilot.core.engine.SwipePlan
 import io.github.syntaxghost404.tappilot.core.engine.TapPlan
 import io.github.syntaxghost404.tappilot.overlay.OverlayManager
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
@@ -34,6 +35,9 @@ class TapPilotAccessibilityService : AccessibilityService(), GestureDispatcher {
         overlay = OverlayManager(this, appGraph, dispatcher = this)
         TapPilotRuntime.attach(this)
         ControlsTileService.requestRefresh(this)
+        // Remembered so that, if the phone later switches the service off, the app can say so
+        // instead of treating it as a first-time setup.
+        appGraph.ioScope.launch { appGraph.settings.markServiceSetUp() }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit

@@ -105,6 +105,8 @@ internal class OverlayManager(
     internal val controlsView: View? get() = controls?.view
     internal val controlsOrigin: Point? get() = controls?.params?.let { Point(it.x, it.y) }
     internal val markerViews: List<View> get() = markers.values.map { it.window.view }
+    internal val markerBounds: List<Rect>
+        get() = markers.values.map { with(it.window.params) { Rect(x, y, x + width, y + height) } }
 
     private val density: Float get() = context.resources.displayMetrics.density
     private fun dp(value: Float): Int = (value * density).roundToInt()
@@ -310,9 +312,17 @@ internal class OverlayManager(
         val s = session ?: return
         val canvas = displaySize()
         val cascade = dp(28f) * (s.script.steps.size % 6)
+        // The middle of the screen, unless the controls are there.
+        val (point) = clearOfControls(
+            s,
+            canvas,
+            listOf(0.5f to 0.5f, 0.75f to 0.5f, 0.25f to 0.5f, 0.5f to 0.75f, 0.5f to 0.25f).map { (fx, fy) ->
+                listOf(PointF(canvas.width * fx + cascade, canvas.height * fy + cascade))
+            },
+        )
         val step = TapStep(
-            x = (canvas.width / 2f + cascade).coerceAtMost(canvas.width - 1f),
-            y = (canvas.height / 2f + cascade).coerceAtMost(canvas.height - 1f),
+            x = point.x,
+            y = point.y,
             holdMs = s.settings.defaultHoldMs,
             delayMs = s.settings.defaultDelayMs,
         )
@@ -324,12 +334,20 @@ internal class OverlayManager(
         val s = session ?: return
         val canvas = displaySize()
         val cascade = dp(28f) * (s.script.steps.size % 6)
-        val y = (canvas.height * 0.4f + cascade).coerceAtMost(canvas.height - 1f)
+        // Across the screen a little above the middle, unless the controls are there.
+        val (start, end) = clearOfControls(
+            s,
+            canvas,
+            listOf(0.4f, 0.65f, 0.2f).map { fy ->
+                val y = canvas.height * fy + cascade
+                listOf(PointF(canvas.width * 0.28f, y), PointF(canvas.width * 0.72f, y))
+            },
+        )
         val step = SwipeStep(
-            startX = canvas.width * 0.28f,
-            startY = y,
-            endX = canvas.width * 0.72f,
-            endY = y,
+            startX = start.x,
+            startY = start.y,
+            endX = end.x,
+            endY = end.y,
             durationMs = s.settings.defaultSwipeMs,
             delayMs = s.settings.defaultDelayMs,
         )
@@ -357,7 +375,7 @@ internal class OverlayManager(
             s.lastSaved = loaded
             s.persisted = loaded != null
             s.script = loaded ?: Script(name = "", canvas = canvas)
-            syncMarkers()
+            syncMarkers(raiseControls = true)
             graph.settings.rememberSession(OverlayMode.Multi, loaded?.id)
             publishStatus(force = true)
         }
@@ -632,7 +650,7 @@ internal class OverlayManager(
         return ControlsLayout.choose(canvas.width / density, canvas.height / density, s.mode, s.settings.controlSize)
     }
 
-    /** Keeps the controls above newly added target windows. */
+    /** Puts the controls back above every target window by adding their window again. */
     private fun raiseControls() {
         val window = controls ?: return
         if (!window.isShown) return
@@ -650,8 +668,12 @@ internal class OverlayManager(
         }
     }
 
-    /** Adds, removes and repositions target windows to match the session's script. */
-    private fun syncMarkers() {
+    /**
+     * Adds, removes and repositions target windows to match the session's script. New windows go
+     * above the controls; [raiseControls] puts the controls back on top by adding their window
+     * again, which makes them blink, so it is only for replacing a whole sequence.
+     */
+    private fun syncMarkers(raiseControls: Boolean = false) {
         val s = session ?: return
         val desired = desiredHandles(s.script)
         val keys = desired.map { it.first.key }.toSet()
@@ -672,7 +694,34 @@ internal class OverlayManager(
             marker.window.resize(sizePx, sizePx)
             if (!marker.dragging) positionMarker(s, marker, sizePx)
         }
-        if (added) raiseControls()
+        if (added && raiseControls) raiseControls()
+    }
+
+    /**
+     * New targets sit above the controls, so they go where they leave the controls clear: the
+     * first of [candidates] (each a step's handle points) whose targets all miss the controls, or
+     * the first if none does. Points are kept on screen.
+     */
+    private fun clearOfControls(s: OverlaySession, canvas: CanvasSize, candidates: List<List<PointF>>): List<PointF> {
+        val onScreen = candidates.map { points ->
+            points.map { PointF(it.x.coerceIn(0f, canvas.width - 1f), it.y.coerceIn(0f, canvas.height - 1f)) }
+        }
+        val window = controls ?: return onScreen.first()
+        val (width, height) = controlsSize()
+        val margin = dp(12f)
+        val half = dp(s.settings.markerSizeDp.toFloat()) / 2
+        val blocked = Rect(
+            window.params.x - margin,
+            window.params.y - margin,
+            window.params.x + width + margin,
+            window.params.y + height + margin,
+        )
+        fun clear(point: PointF): Boolean {
+            val x = point.x.roundToInt()
+            val y = point.y.roundToInt()
+            return !Rect.intersects(blocked, Rect(x - half, y - half, x + half, y + half))
+        }
+        return onScreen.firstOrNull { points -> points.all(::clear) } ?: onScreen.first()
     }
 
     private fun positionMarker(s: OverlaySession, marker: MarkerWindow, sizePx: Int) {

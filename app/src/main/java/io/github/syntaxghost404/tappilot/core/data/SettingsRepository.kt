@@ -33,6 +33,10 @@ data class AppSettings(
     val defaultHoldMs: Long = Timing.DEFAULT_HOLD_MS,
     val defaultSwipeMs: Long = Timing.DEFAULT_SWIPE_MS,
     val onboardingDone: Boolean = false,
+    /** The user agreed to the accessibility disclosure, so it is not shown again. */
+    val accessibilityConsent: Boolean = false,
+    /** The accessibility service has connected at least once on this device. */
+    val serviceSetUp: Boolean = false,
     val lastMode: OverlayMode = OverlayMode.Single,
     val lastScriptId: String? = null,
     /** Last position of the floating controls, or -1 when never moved. */
@@ -49,7 +53,11 @@ data class AppSettings(
     }
 }
 
-class SettingsRepository(private val store: DataStore<Preferences>) {
+/**
+ * The app's settings. [installId] tells this installation apart from others, because settings are
+ * backed up and may be restored onto another phone.
+ */
+class SettingsRepository(private val store: DataStore<Preferences>, private val installId: Long = 0L) {
     val settings: Flow<AppSettings> = store.data.map { it.toSettings() }.distinctUntilChanged()
 
     suspend fun current(): AppSettings = settings.first()
@@ -69,6 +77,8 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     suspend fun setDefaultSwipe(ms: Long) =
         edit { it[DEFAULT_SWIPE] = ms.coerceIn(Timing.MIN_SWIPE_MS, Timing.MAX_GESTURE_MS) }
     suspend fun setOnboardingDone(done: Boolean) = edit { it[ONBOARDED] = done }
+    suspend fun setAccessibilityConsent(given: Boolean) = edit { it[CONSENT] = given }
+    suspend fun markServiceSetUp() = edit { it[SERVICE_SET_UP] = installId }
 
     suspend fun rememberSession(mode: OverlayMode, scriptId: String?) = edit {
         it[LAST_MODE] = mode.name
@@ -97,6 +107,10 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         defaultHoldMs = this[DEFAULT_HOLD] ?: Timing.DEFAULT_HOLD_MS,
         defaultSwipeMs = this[DEFAULT_SWIPE] ?: Timing.DEFAULT_SWIPE_MS,
         onboardingDone = this[ONBOARDED] ?: false,
+        accessibilityConsent = this[CONSENT] ?: false,
+        // Only on this installation: a backup restored onto a new phone does not bring the service
+        // with it. Versions before this was recorded saved the last session only while it ran.
+        serviceSetUp = this[SERVICE_SET_UP]?.let { it == installId } ?: (this[LAST_MODE] != null),
         lastMode = enumOr(this[LAST_MODE], OverlayMode.Single),
         lastScriptId = this[LAST_SCRIPT],
         controlsX = this[CONTROLS_X] ?: -1,
@@ -119,6 +133,8 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         val DEFAULT_HOLD = longPreferencesKey("default_hold_ms")
         val DEFAULT_SWIPE = longPreferencesKey("default_swipe_ms")
         val ONBOARDED = booleanPreferencesKey("onboarding_done")
+        val CONSENT = booleanPreferencesKey("accessibility_consent")
+        val SERVICE_SET_UP = longPreferencesKey("service_set_up_install")
         val LAST_MODE = stringPreferencesKey("last_mode")
         val LAST_SCRIPT = stringPreferencesKey("last_script_id")
         val CONTROLS_X = intPreferencesKey("controls_x")

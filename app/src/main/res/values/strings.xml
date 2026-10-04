@@ -41,6 +41,8 @@
     <string name="action_edit_on_screen">Edit on screen</string>
     <string name="action_play">Play</string>
     <string name="action_turn_on">Turn on</string>
+    <string name="action_turn_on_again">Turn on again</string>
+    <string name="action_troubleshoot">Troubleshoot</string>
     <string name="action_open_settings">Open settings</string>
     <string name="action_hide_controls">Hide controls</string>
     <string name="action_new_sequence">New sequence</string>
@@ -52,8 +54,14 @@
     <string name="home_status_controls">Floating controls are on</string>
     <string name="home_status_running">Running · %1$s</string>
     <string name="home_status_off">Accessibility service is off</string>
+    <string name="home_status_starting">Starting the accessibility service…</string>
+    <string name="home_status_stuck">Accessibility service isn’t responding</string>
     <string name="home_service_off_title">One step left</string>
     <string name="home_service_off_body">Turn on the Tap Pilot accessibility service so it can tap and swipe for you.</string>
+    <string name="home_service_turned_off_title">Service turned off</string>
+    <string name="home_service_turned_off_body">Your phone may switch it off when Tap Pilot is closed or cleared from recent apps. Turn it on again to keep tapping.</string>
+    <string name="home_service_stuck_title">Not responding</string>
+    <string name="home_service_stuck_body">The service is on, but Android has stopped it. Turn Tap Pilot off and on again in accessibility settings.</string>
     <string name="home_controls_title">Controls are on screen</string>
     <string name="home_controls_body">Switch to the app you want to automate, then press play on the floating controls.</string>
     <string name="mode_single_title">Single point</string>
@@ -265,11 +273,15 @@
     <string name="action_agree_continue">Agree and continue</string>
     <string name="action_not_now">Not now</string>
     <string name="setup_title">Turn on the service</string>
+    <string name="setup_title_restart">Restart the service</string>
     <string name="setup_body">Android will ask you to confirm. You can turn it off at any time in the same place.</string>
     <string name="setup_step_open">Tap Open settings below</string>
     <string name="setup_step_find">Find Tap Pilot, often under Downloaded apps or Installed apps</string>
     <string name="setup_step_enable">Turn on Use Tap Pilot and confirm</string>
+    <string name="setup_step_restart">Turn Use Tap Pilot off, then on again</string>
     <string name="setup_waiting">Waiting for the service…</string>
+    <string name="setup_stuck">Not responding</string>
+    <string name="setup_stuck_body">Tap Pilot is on, but Android has stopped it. Turning it off and on again restarts it.</string>
     <string name="setup_connected">All set</string>
     <string name="setup_restricted_title">Switch greyed out?</string>
     <string name="setup_restricted_body">If you installed Tap Pilot from a file, Android may restrict it. Open App info, tap the ⋮ menu, choose Allow restricted settings, then try again.</string>
@@ -278,6 +290,7 @@
     <!-- Troubleshooting -->
     <string name="ts_service">Accessibility service</string>
     <string name="ts_service_connected">On and connected</string>
+    <string name="ts_service_starting">Starting…</string>
     <string name="ts_service_stuck">Turned on, but not responding</string>
     <string name="ts_service_off">Off</string>
     <string name="ts_service_hint">If gestures stop working, turn the service off and on again.</string>

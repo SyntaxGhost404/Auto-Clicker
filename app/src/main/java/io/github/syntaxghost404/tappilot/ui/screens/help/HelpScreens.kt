@@ -172,6 +172,7 @@ fun TroubleshootingScreen(state: TroubleshootingState, actions: TroubleshootingA
                 status = stringResource(
                     when (state.service) {
                         ServiceState.Connected -> R.string.ts_service_connected
+                        ServiceState.Starting -> R.string.ts_service_starting
                         ServiceState.Stuck -> R.string.ts_service_stuck
                         ServiceState.Off -> R.string.ts_service_off
                     },

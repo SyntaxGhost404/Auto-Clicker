@@ -24,6 +24,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -179,6 +181,48 @@ class OverlayLayoutTest {
         idle(1_000)
         assertAllControlsVisible(OverlayMode.Multi)
         assertVertical(true)
+    }
+
+    @Test
+    @Config(qualifiers = PORTRAIT)
+    fun `adding targets leaves the controls window in place`() {
+        open(OverlayMode.Multi, ControlSize.Regular)
+        val view = checkNotNull(manager.controlsView)
+        val windowRoot = view.parent
+
+        manager.controlActions.onAddTap()
+        manager.controlActions.onAddSwipe()
+        manager.controlActions.onAddTap()
+        idle()
+
+        assertEquals(4, manager.markerWindowCount)
+        assertSame("the controls window was removed and added again", windowRoot, view.parent)
+        assertTrue(view.isAttachedToWindow)
+        assertAllControlsVisible(OverlayMode.Multi)
+    }
+
+    @Test
+    @Config(qualifiers = PORTRAIT)
+    fun `new targets appear clear of the controls`() {
+        open(OverlayMode.Multi, ControlSize.Regular)
+        // Move the controls over the middle of the screen, where new targets appear by default.
+        val window = windowBounds()
+        dragControlsBy(screen().exactCenterX() - window.exactCenterX(), screen().exactCenterY() - window.exactCenterY())
+        idle(500)
+        assertTrue(windowBounds().contains(screen().centerX(), screen().centerY()))
+
+        repeat(3) {
+            manager.controlActions.onAddTap()
+            manager.controlActions.onAddSwipe()
+        }
+        idle()
+
+        val controls = windowBounds()
+        assertEquals(9, manager.markerBounds.size)
+        manager.markerBounds.forEach { target ->
+            assertFalse("target $target covers the controls $controls", Rect.intersects(target, controls))
+            assertOnScreen(target)
+        }
     }
 
     @Test

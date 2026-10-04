@@ -215,18 +215,31 @@ fun WelcomeScreen(onGetStarted: () -> Unit) {
 
 interface ServiceSetupActions {
     fun onBack()
+
+    /** The user accepted the disclosure. Remembered, so it is shown only once. */
+    fun onAgree()
     fun onOpenAccessibility()
     fun onOpenAppInfo()
     fun onDone()
     fun onNotNow()
 }
 
+/**
+ * The accessibility disclosure, then the steps to turn the service on. Once the user has [consented],
+ * here or on an earlier visit, the steps come straight away.
+ */
 @Composable
-fun ServiceSetupScreen(service: ServiceState, actions: ServiceSetupActions) {
+fun ServiceSetupScreen(service: ServiceState, actions: ServiceSetupActions, consented: Boolean = false) {
     var agreed by rememberSaveable { mutableStateOf(false) }
-    val showSteps = agreed || service == ServiceState.Connected
+    val showSteps = consented || agreed || service == ServiceState.Connected
     DetailScaffold(
-        title = stringResource(if (showSteps) R.string.setup_title else R.string.disclosure_title),
+        title = stringResource(
+            when {
+                !showSteps -> R.string.disclosure_title
+                service == ServiceState.Stuck -> R.string.setup_title_restart
+                else -> R.string.setup_title
+            },
+        ),
         onBack = actions::onBack,
     ) { padding ->
         val enter = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -244,7 +257,17 @@ fun ServiceSetupScreen(service: ServiceState, actions: ServiceSetupActions) {
                     .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
             ) {
-                if (steps) SetupSteps(service, actions) else Disclosure(onAgree = { agreed = true }, onNotNow = actions::onNotNow)
+                if (steps) {
+                    SetupSteps(service, actions)
+                } else {
+                    Disclosure(
+                        onAgree = {
+                            agreed = true
+                            actions.onAgree()
+                        },
+                        onNotNow = actions::onNotNow,
+                    )
+                }
             }
         }
     }
@@ -288,6 +311,8 @@ private fun Disclosure(onAgree: () -> Unit, onNotNow: () -> Unit) {
 @Composable
 private fun SetupSteps(service: ServiceState, actions: ServiceSetupActions) {
     val connected = service == ServiceState.Connected
+    // A service that is on but not responding has to be turned off and on again.
+    val stuck = service == ServiceState.Stuck
     FormCard(color = if (connected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (connected) {
@@ -300,12 +325,18 @@ private fun SetupSteps(service: ServiceState, actions: ServiceSetupActions) {
             Spacer(Modifier.size(16.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    stringResource(if (connected) R.string.setup_connected else R.string.setup_waiting),
+                    stringResource(
+                        when {
+                            connected -> R.string.setup_connected
+                            stuck -> R.string.setup_stuck
+                            else -> R.string.setup_waiting
+                        },
+                    ),
                     style = MaterialTheme.typography.titleLargeEmphasized,
                 )
                 if (!connected) {
                     Text(
-                        stringResource(R.string.setup_body),
+                        stringResource(if (stuck) R.string.setup_stuck_body else R.string.setup_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -332,7 +363,7 @@ private fun SetupSteps(service: ServiceState, actions: ServiceSetupActions) {
     }
     if (!connected) {
         Spacer(Modifier.size(12.dp))
-        val steps = listOf(R.string.setup_step_open, R.string.setup_step_find, R.string.setup_step_enable)
+        val steps = listOf(R.string.setup_step_open, R.string.setup_step_find, if (stuck) R.string.setup_step_restart else R.string.setup_step_enable)
         steps.forEachIndexed { index, text ->
             SegmentedListItem(
                 shapes = ListItemDefaults.segmentedShapes(index = index, count = steps.size),

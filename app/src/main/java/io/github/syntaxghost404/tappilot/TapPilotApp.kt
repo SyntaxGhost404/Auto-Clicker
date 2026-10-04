@@ -2,6 +2,8 @@ package io.github.syntaxghost404.tappilot
 
 import android.app.Application
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.dataStoreFile
@@ -40,9 +42,20 @@ class AppGraph(context: Context) {
             scope = ioScope,
             produceFile = { context.preferencesDataStoreFile("settings") },
         ),
+        installId = context.firstInstallTime(),
     )
 
     val backups = BackupManager(context.applicationContext, scripts)
 }
 
 val Context.appGraph: AppGraph get() = (applicationContext as TapPilotApp).graph
+
+/** When the app was installed on this phone. Updates keep it; a new installation gets a new one. */
+private fun Context.firstInstallTime(): Long = runCatching {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0)).firstInstallTime
+    } else {
+        @Suppress("DEPRECATION")
+        packageManager.getPackageInfo(packageName, 0).firstInstallTime
+    }
+}.getOrDefault(0L)

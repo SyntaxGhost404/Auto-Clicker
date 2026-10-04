@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -64,7 +65,8 @@ import kotlin.math.roundToInt
 
 /**
  * Single-choice connected button group, the Material 3 Expressive replacement for segmented
- * buttons. The selected item morphs to a fully rounded shape.
+ * buttons. The selected item morphs to a fully rounded shape. With an [icon], each option shows its
+ * icon above its label, which leaves the label the full width of the button.
  */
 @Composable
 fun <T> ConnectedChoiceGroup(
@@ -96,6 +98,7 @@ fun <T> ConnectedChoiceGroup(
                 icon != null -> icon(option)
                 else -> null
             }
+            val stacked = icon != null
             // Disabled toggle buttons all look alike, so keep the choice visible as disabled
             // segmented buttons do.
             val colors = if (!enabled && checked) {
@@ -119,17 +122,27 @@ fun <T> ConnectedChoiceGroup(
                 buttonSize = size,
                 shapes = shapes,
                 colors = colors,
-                icon = leading?.let { vector ->
+                icon = leading?.takeUnless { stacked }?.let { vector ->
                     { Icon(vector, contentDescription = null, modifier = Modifier.size(ToggleButtonDefaults.IconSize)) }
                 },
                 contentPadding = contentPadding
-                    ?: ToggleButtonDefaults.contentPaddingFor(size, hasStartIcon = leading != null),
+                    ?: if (stacked) StackedChoicePadding else ToggleButtonDefaults.contentPaddingFor(size, hasStartIcon = leading != null),
             ) {
-                Text(label(option), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (stacked && leading != null) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(leading, contentDescription = null)
+                        Spacer(Modifier.height(4.dp))
+                        Text(label(option), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                } else {
+                    Text(label(option), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
         }
     }
 }
+
+private val StackedChoicePadding = PaddingValues(horizontal = 8.dp, vertical = 12.dp)
 
 /** A whole-number field. Emits only valid values within [range]. */
 @Composable

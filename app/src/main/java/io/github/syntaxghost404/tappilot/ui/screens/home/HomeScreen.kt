@@ -1,11 +1,14 @@
 package io.github.syntaxghost404.tappilot.ui.screens.home
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -27,9 +30,11 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AllInclusive
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.SyncProblem
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.VisibilityOff
@@ -58,6 +63,7 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import io.github.syntaxghost404.tappilot.R
 import io.github.syntaxghost404.tappilot.core.data.OverlayMode
@@ -81,11 +87,21 @@ data class HomeState(
     val status: OverlayStatus,
     val quick: Script?,
     val recent: List<Script>,
+    /** The service has worked on this device before, so if it is off now, it was turned off. */
+    val serviceSetUp: Boolean = false,
+    /** The user has agreed to the accessibility disclosure. */
+    val consented: Boolean = false,
 )
 
 interface HomeActions {
     fun onSelectTab(tab: TopLevelRoute)
+
+    /** Walks the user through turning the service on, starting with the disclosure if needed. */
     fun onTurnOn()
+
+    /** Opens the system accessibility settings, where the service is switched on and off. */
+    fun onOpenAccessibility()
+    fun onTroubleshoot()
     fun onStartSingle()
     fun onSingleSettings()
     fun onNewSequence()
@@ -101,6 +117,8 @@ fun HomeScreen(state: HomeState, actions: HomeActions) {
     val resources = LocalResources.current
     val status = state.status
     val subtitle = when {
+        state.service == ServiceState.Starting -> stringResource(R.string.home_status_starting)
+        state.service == ServiceState.Stuck -> stringResource(R.string.home_status_stuck)
         state.service != ServiceState.Connected -> stringResource(R.string.home_status_off)
         status is OverlayStatus.Visible && status.running -> stringResource(
             R.string.home_status_running,
@@ -126,14 +144,18 @@ fun HomeScreen(state: HomeState, actions: HomeActions) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item(key = "service") {
-                AnimatedVisibility(
-                    visible = state.service != ServiceState.Connected,
-                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
-                        expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
-                    exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
-                        shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
-                ) {
-                    ServiceCard(onTurnOn = actions::onTurnOn)
+                val resize = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
+                val enter = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+                val exit = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+                // Full width throughout, so that showing, hiding or changing the card only animates its height.
+                AnimatedContent(
+                    targetState = serviceIssue(state),
+                    transitionSpec = { fadeIn(enter) togetherWith fadeOut(exit) using SizeTransform { _, _ -> resize } },
+                    contentAlignment = Alignment.TopCenter,
+                    label = "service-card",
+                    modifier = Modifier.fillMaxWidth(),
+                ) { issue ->
+                    if (issue != null) ServiceCard(issue, state.consented, actions)
                 }
             }
             item(key = "live") {
@@ -200,47 +222,131 @@ fun HomeScreen(state: HomeState, actions: HomeActions) {
     }
 }
 
+/** Why the service card is showing. Each case asks for something different. */
+private enum class ServiceIssue {
+    /** Never turned on: the first-run setup. */
+    NotSetUp,
+
+    /** Worked before, and has since been switched off, by the user or by the phone. */
+    TurnedOff,
+
+    /** On in settings, but not running. Turning it off and on again restarts it. */
+    NotResponding,
+}
+
+/** The card the service calls for, or null while it works or is still starting. */
+private fun serviceIssue(state: HomeState): ServiceIssue? = when (state.service) {
+    ServiceState.Connected, ServiceState.Starting -> null
+    ServiceState.Stuck -> ServiceIssue.NotResponding
+    ServiceState.Off -> if (state.serviceSetUp) ServiceIssue.TurnedOff else ServiceIssue.NotSetUp
+}
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ServiceCard(onTurnOn: () -> Unit) {
+private fun ServiceCard(issue: ServiceIssue, consented: Boolean, actions: HomeActions) {
+    val colors = MaterialTheme.colorScheme
+    val error = issue == ServiceIssue.NotResponding
+    val container = if (error) colors.errorContainer else colors.inverseSurface
+    val content = if (error) colors.onErrorContainer else colors.inverseOnSurface
+    val strong = if (error) colors.error else colors.inversePrimary
+    val onStrong = if (error) colors.onError else colors.inverseSurface
     Surface(
         shape = MaterialTheme.shapes.extraLargeIncreased,
-        color = MaterialTheme.colorScheme.inverseSurface,
-        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+        color = container,
+        contentColor = content,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 ShapeBadge(
-                    polygon = MaterialShapes.SoftBurst,
-                    color = MaterialTheme.colorScheme.inversePrimary,
+                    polygon = when (issue) {
+                        ServiceIssue.NotSetUp, ServiceIssue.NotResponding -> MaterialShapes.SoftBurst
+                        ServiceIssue.TurnedOff -> MaterialShapes.Cookie7Sided
+                    },
+                    color = strong,
                     size = 56.dp,
                 ) {
-                    Icon(Icons.Rounded.AccessibilityNew, contentDescription = null, tint = MaterialTheme.colorScheme.inverseSurface)
+                    Icon(
+                        when (issue) {
+                            ServiceIssue.NotSetUp -> Icons.Rounded.AccessibilityNew
+                            ServiceIssue.TurnedOff -> Icons.Rounded.PowerSettingsNew
+                            ServiceIssue.NotResponding -> Icons.Rounded.SyncProblem
+                        },
+                        contentDescription = null,
+                        tint = onStrong,
+                    )
                 }
                 Spacer(Modifier.size(16.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.home_service_off_title), style = MaterialTheme.typography.titleLargeEmphasized)
                     Text(
-                        stringResource(R.string.home_service_off_body),
+                        stringResource(
+                            when (issue) {
+                                ServiceIssue.NotSetUp -> R.string.home_service_off_title
+                                ServiceIssue.TurnedOff -> R.string.home_service_turned_off_title
+                                ServiceIssue.NotResponding -> R.string.home_service_stuck_title
+                            },
+                        ),
+                        style = MaterialTheme.typography.titleLargeEmphasized,
+                    )
+                    Text(
+                        stringResource(
+                            when (issue) {
+                                ServiceIssue.NotSetUp -> R.string.home_service_off_body
+                                ServiceIssue.TurnedOff -> R.string.home_service_turned_off_body
+                                ServiceIssue.NotResponding -> R.string.home_service_stuck_body
+                            },
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.8f),
+                        color = content.copy(alpha = 0.8f),
                     )
                 }
             }
             Spacer(Modifier.size(16.dp))
-            Button(
-                onClick = onTurnOn,
-                shapes = ButtonDefaults.shapes(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.inversePrimary,
-                    contentColor = MaterialTheme.colorScheme.inverseSurface,
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = ButtonDefaults.MediumContainerHeight),
-                contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
-            ) {
-                Text(stringResource(R.string.action_turn_on), style = ButtonDefaults.textStyleFor(ButtonDefaults.MediumContainerHeight))
+            val primary = ButtonDefaults.buttonColors(containerColor = strong, contentColor = onStrong)
+            if (issue == ServiceIssue.NotSetUp) {
+                Button(
+                    onClick = actions::onTurnOn,
+                    shapes = ButtonDefaults.shapes(),
+                    colors = primary,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = ButtonDefaults.MediumContainerHeight),
+                    contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
+                ) {
+                    Text(stringResource(R.string.action_turn_on), style = ButtonDefaults.textStyleFor(ButtonDefaults.MediumContainerHeight))
+                }
+            } else {
+                // Side by side when both labels fit, otherwise one above the other.
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Button(
+                        onClick = when {
+                            issue == ServiceIssue.NotResponding || consented -> actions::onOpenAccessibility
+                            // The disclosure comes first until the user has agreed to it.
+                            else -> actions::onTurnOn
+                        },
+                        shapes = ButtonDefaults.shapes(),
+                        colors = primary,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            stringResource(if (error) R.string.action_open_settings else R.string.action_turn_on_again),
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = actions::onTroubleshoot,
+                        shapes = ButtonDefaults.shapes(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = content),
+                        border = BorderStroke(1.dp, content.copy(alpha = 0.4f)),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.action_troubleshoot), maxLines = 1, softWrap = false)
+                    }
+                }
             }
         }
     }

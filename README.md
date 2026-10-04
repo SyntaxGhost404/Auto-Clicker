@@ -17,6 +17,8 @@ anywhere on screen and Tap Pilot taps and swipes for you at the rhythm you choos
   Maximize.
 - **Haptic feedback**: short vibrations for taps, drags and runs starting or ending, following the
   phone's own vibration settings. It can be turned off in Settings.
+- **Service status**: Home says whether the accessibility service still needs setting up, was
+  switched off, or is on but not responding, and links to the fix for each.
 - **Library**: rename, duplicate, delete with undo, and import or export sequences as JSON.
 - Quick Settings tile, launcher shortcuts, dynamic color, light and dark themes.
 - **Private by design**: no internet permission, no ads, no analytics. The accessibility service
@@ -41,8 +43,9 @@ To sign release builds, set `tappilot.storeFile`, `tappilot.storePassword`, `tap
 
 ## First run
 
-The app walks you through enabling its accessibility service. If you installed the APK from a file
-and the switch is greyed out, open **App info → ⋮ → Allow restricted settings**, then try again.
+The app walks you through enabling its accessibility service. You agree to the accessibility
+disclosure once; later visits go straight to the steps. If you installed the APK from a file and the
+switch is greyed out, open **App info → ⋮ → Allow restricted settings**, then try again.
 
 ## Project layout
 

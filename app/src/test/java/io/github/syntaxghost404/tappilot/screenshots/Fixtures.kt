@@ -82,6 +82,8 @@ object Fixtures {
     object NoHome : HomeActions {
         override fun onSelectTab(tab: TopLevelRoute) = Unit
         override fun onTurnOn() = Unit
+        override fun onOpenAccessibility() = Unit
+        override fun onTroubleshoot() = Unit
         override fun onStartSingle() = Unit
         override fun onSingleSettings() = Unit
         override fun onNewSequence() = Unit
@@ -150,6 +152,7 @@ object Fixtures {
 
     object NoSetup : ServiceSetupActions {
         override fun onBack() = Unit
+        override fun onAgree() = Unit
         override fun onOpenAccessibility() = Unit
         override fun onOpenAppInfo() = Unit
         override fun onDone() = Unit

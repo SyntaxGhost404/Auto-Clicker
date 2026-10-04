@@ -75,6 +75,9 @@ import kotlin.math.roundToInt
 /** The Redmi 13C held sideways. */
 private const val LANDSCAPE = "w800dp-h360dp-land-xhdpi"
 
+/** The Redmi 13C held upright. */
+private const val REDMI = "w360dp-h800dp-port-xhdpi"
+
 /**
  * Renders every screen and the floating controls so the design can be reviewed without a device.
  * Run with `./gradlew recordRoborazziDebug`; images land in app/build/screenshots.
@@ -105,6 +108,60 @@ class ScreenshotTest {
 
     @Test fun homeServiceOff() = snap("04_home_service_off") {
         HomeScreen(HomeState(ServiceState.Off, OverlayStatus.Hidden, Fixtures.quick, emptyList()), Fixtures.NoHome)
+    }
+
+    @Test
+    @Config(qualifiers = REDMI)
+    fun homeServiceTurnedOff() = snap("30_home_service_turned_off") {
+        HomeScreen(
+            HomeState(ServiceState.Off, OverlayStatus.Hidden, Fixtures.quick, emptyList(), serviceSetUp = true, consented = true),
+            Fixtures.NoHome,
+        )
+    }
+
+    @Test
+    @Config(qualifiers = REDMI)
+    fun homeServiceTurnedOffDark() = snap("31_home_service_turned_off_dark", dark = true) {
+        HomeScreen(
+            HomeState(ServiceState.Off, OverlayStatus.Hidden, Fixtures.quick, emptyList(), serviceSetUp = true, consented = true),
+            Fixtures.NoHome,
+        )
+    }
+
+    @Test
+    @Config(qualifiers = REDMI)
+    fun homeServiceStuck() = snap("32_home_service_not_responding") {
+        HomeScreen(HomeState(ServiceState.Stuck, OverlayStatus.Hidden, Fixtures.quick, emptyList(), serviceSetUp = true), Fixtures.NoHome)
+    }
+
+    @Test
+    @Config(qualifiers = REDMI)
+    fun homeServiceStuckDark() = snap("33_home_service_not_responding_dark", dark = true) {
+        HomeScreen(HomeState(ServiceState.Stuck, OverlayStatus.Hidden, Fixtures.quick, emptyList(), serviceSetUp = true), Fixtures.NoHome)
+    }
+
+    @Test
+    @Config(qualifiers = REDMI)
+    fun homeServiceStarting() = snap("34_home_service_starting") {
+        HomeScreen(HomeState(ServiceState.Starting, OverlayStatus.Hidden, Fixtures.quick, emptyList(), serviceSetUp = true), Fixtures.NoHome)
+    }
+
+    @Test
+    @Config(qualifiers = REDMI)
+    fun setupStuck() = snap("35_setup_not_responding_dark", dark = true) {
+        ServiceSetupScreen(ServiceState.Stuck, Fixtures.NoSetup, consented = true)
+    }
+
+    @Test
+    @Config(qualifiers = REDMI)
+    fun settingsRedmiDark() = snap("36_settings_redmi_dark", dark = true) {
+        SettingsScreen(AppSettings(onboardingDone = true, themeMode = ThemeMode.System), Fixtures.NoSettings, snackbar)
+    }
+
+    @Test
+    @Config(qualifiers = REDMI, fontScale = 1.3f)
+    fun settingsRedmiLargeText() = snap("37_settings_redmi_large_text") {
+        SettingsScreen(AppSettings(onboardingDone = true, themeMode = ThemeMode.System), Fixtures.NoSettings, snackbar)
     }
 
     @Test fun home() = snap("05_home") {

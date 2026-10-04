@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -134,6 +135,8 @@ private fun AppNavigation(
     onPendingStartHandled: () -> Unit,
 ) {
     val backStack = rememberNavBackStack(if (settings.onboardingDone) Home else Welcome)
+    // Read through a state so that screens already on the back stack see changes.
+    val latestSettings by rememberUpdatedState(settings)
     val activity = LocalActivity.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -198,10 +201,14 @@ private fun AppNavigation(
                 val service = rememberServiceState()
                 ServiceSetupScreen(
                     service = service,
+                    consented = latestSettings.accessibilityConsent,
                     actions = remember {
                         object : ServiceSetupActions {
                             override fun onBack() {
                                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex) else finishSetup()
+                            }
+                            override fun onAgree() {
+                                graph.ioScope.launch { graph.settings.setAccessibilityConsent(true) }
                             }
                             override fun onOpenAccessibility() = SystemScreens.openAccessibilitySettings(context)
                             override fun onOpenAppInfo() = SystemScreens.openAppInfo(context)
@@ -219,12 +226,23 @@ private fun AppNavigation(
                 val status by TapPilotRuntime.status.collectAsStateWithLifecycle()
                 val service = rememberServiceState()
                 HomeScreen(
-                    state = HomeState(service, status, quick, recent),
+                    state = HomeState(
+                        service = service,
+                        status = status,
+                        quick = quick,
+                        recent = recent,
+                        serviceSetUp = latestSettings.serviceSetUp,
+                        consented = latestSettings.accessibilityConsent,
+                    ),
                     actions = remember {
                         object : HomeActions {
                             override fun onSelectTab(tab: TopLevelRoute) = selectTab(tab)
                             override fun onTurnOn() {
                                 backStack.add(ServiceSetup)
+                            }
+                            override fun onOpenAccessibility() = SystemScreens.openAccessibilitySettings(context)
+                            override fun onTroubleshoot() {
+                                backStack.add(Troubleshooting)
                             }
                             override fun onStartSingle() = startControls(OverlayMode.Single)
                             override fun onSingleSettings() {

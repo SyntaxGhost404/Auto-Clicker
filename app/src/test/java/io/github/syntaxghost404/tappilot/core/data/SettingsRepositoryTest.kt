@@ -42,6 +42,47 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `consent to the disclosure is kept once given`() = runTest {
+        val store = store()
+        assertFalse(SettingsRepository(store).current().accessibilityConsent)
+
+        SettingsRepository(store).setAccessibilityConsent(true)
+        // A fresh repository reads it back, as the app does after a restart.
+        assertTrue(SettingsRepository(store).current().accessibilityConsent)
+    }
+
+    @Test
+    fun `the service counts as set up once it has connected`() = runTest {
+        val repository = SettingsRepository(store())
+        assertFalse(repository.current().serviceSetUp)
+        repository.markServiceSetUp()
+        assertTrue(repository.current().serviceSetUp)
+    }
+
+    @Test
+    fun `settings restored onto another phone do not count the service as set up there`() = runTest {
+        val store = store()
+        SettingsRepository(store, installId = 1_000L).markServiceSetUp()
+        assertTrue(SettingsRepository(store, installId = 1_000L).current().serviceSetUp)
+
+        // The same backed-up settings, read by another installation.
+        val restored = SettingsRepository(store, installId = 2_000L)
+        assertFalse(restored.current().serviceSetUp)
+        restored.markServiceSetUp()
+        assertTrue(restored.current().serviceSetUp)
+    }
+
+    @Test
+    fun `controls opened by an earlier version mean the service was set up`() = runTest {
+        val store = store()
+        // Saved by an earlier version whenever the floating controls opened.
+        store.edit { it[stringPreferencesKey("last_mode")] = OverlayMode.Multi.name }
+        val settings = SettingsRepository(store).current()
+        assertTrue(settings.serviceSetUp)
+        assertFalse("consent is only ever recorded by agreeing", settings.accessibilityConsent)
+    }
+
+    @Test
     fun `haptic feedback can be turned off and on`() = runTest {
         val repository = SettingsRepository(store())
         repository.setHapticFeedback(false)
