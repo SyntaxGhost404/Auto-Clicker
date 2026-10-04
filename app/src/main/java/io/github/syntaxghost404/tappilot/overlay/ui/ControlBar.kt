@@ -3,12 +3,17 @@ package io.github.syntaxghost404.tappilot.overlay.ui
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityManager
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +26,9 @@ import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.rounded.AdsClick
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CloseFullscreen
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.OpenInFull
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Swipe
@@ -59,6 +66,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
 import io.github.syntaxghost404.tappilot.R
@@ -66,8 +74,11 @@ import io.github.syntaxghost404.tappilot.core.engine.RunProgress
 import io.github.syntaxghost404.tappilot.core.model.StopMode
 import io.github.syntaxghost404.tappilot.overlay.ControlsLayout
 import io.github.syntaxghost404.tappilot.overlay.OverlaySession
+import io.github.syntaxghost404.tappilot.overlay.ToolbarItem
+import io.github.syntaxghost404.tappilot.overlay.toolbarItems
 import io.github.syntaxghost404.tappilot.ui.components.MorphShape
 import io.github.syntaxghost404.tappilot.ui.format.Durations
+import io.github.syntaxghost404.tappilot.ui.withHaptic
 import kotlinx.coroutines.delay
 
 internal interface ControlActions {
@@ -77,6 +88,7 @@ internal interface ControlActions {
     fun onRemoveLast()
     fun onOpenSettings()
     fun onOpenSequences()
+    fun onToggleMinimized()
     fun onClose()
 }
 
@@ -106,7 +118,7 @@ internal fun ControlBar(session: OverlaySession, actions: ControlActions) {
                 expandedShadowElevation = 3.dp,
                 collapsedShadowElevation = 3.dp,
                 floatingActionButton = fab,
-            ) { ToolbarButtons(session, actions) }
+            ) { ToolbarButtons(session, actions, vertical = true) }
         } else {
             // The FAB leads, so it stays at the window's corner when the toolbar collapses.
             HorizontalFloatingToolbar(
@@ -117,30 +129,76 @@ internal fun ControlBar(session: OverlaySession, actions: ControlActions) {
                 floatingActionButtonPosition = FloatingToolbarHorizontalFabPosition.Start,
                 expandedShadowElevation = 3.dp,
                 collapsedShadowElevation = 3.dp,
-            ) { ToolbarButtons(session, actions) }
+            ) { ToolbarButtons(session, actions, vertical = false) }
         }
     }
 }
 
-/** The toolbar's buttons. [ControlsLayout.buttonCount] must match. */
+/**
+ * The toolbar's buttons, as listed by [toolbarItems]. Minimizing folds every button but Minimize
+ * away along the toolbar, toward the play button, and Minimize turns into Maximize.
+ */
 @Composable
-private fun ToolbarButtons(session: OverlaySession, actions: ControlActions) {
-    val hasSteps = session.script.steps.isNotEmpty()
-    if (session.isMulti) {
-        ToolbarButton(Icons.Rounded.AdsClick, stringResource(R.string.overlay_add_tap), actions::onAddTap)
-        ToolbarButton(Icons.Rounded.Swipe, stringResource(R.string.overlay_add_swipe), actions::onAddSwipe)
-        ToolbarButton(
+private fun ToolbarButtons(session: OverlaySession, actions: ControlActions, vertical: Boolean) {
+    val minimized = session.isMulti && session.toolbarMinimized
+    val sizeSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
+    val fadeInSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    val fadeOutSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+    val enter = fadeIn(fadeInSpec) +
+        if (vertical) expandVertically(sizeSpec, Alignment.Top) else expandHorizontally(sizeSpec, Alignment.Start)
+    val exit = fadeOut(fadeOutSpec) +
+        if (vertical) shrinkVertically(sizeSpec, Alignment.Top) else shrinkHorizontally(sizeSpec, Alignment.Start)
+    for (item in toolbarItems(session.mode)) {
+        if (item == ToolbarItem.Minimize) {
+            ToolbarItemButton(item, session, actions)
+        } else {
+            AnimatedVisibility(visible = !minimized, enter = enter, exit = exit) {
+                ToolbarItemButton(item, session, actions)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolbarItemButton(item: ToolbarItem, session: OverlaySession, actions: ControlActions) {
+    when (item) {
+        ToolbarItem.AddTap -> ToolbarButton(Icons.Rounded.AdsClick, stringResource(R.string.overlay_add_tap), actions::onAddTap)
+        ToolbarItem.AddSwipe -> ToolbarButton(Icons.Rounded.Swipe, stringResource(R.string.overlay_add_swipe), actions::onAddSwipe)
+        ToolbarItem.RemoveLast -> ToolbarButton(
             Icons.AutoMirrored.Rounded.Undo,
             stringResource(R.string.overlay_remove_last),
             actions::onRemoveLast,
-            enabled = hasSteps,
+            enabled = session.script.steps.isNotEmpty(),
         )
+        ToolbarItem.Settings -> ToolbarButton(Icons.Rounded.Tune, stringResource(R.string.overlay_settings), actions::onOpenSettings)
+        ToolbarItem.Sequences -> ToolbarButton(Icons.Rounded.FolderOpen, stringResource(R.string.overlay_sequences), actions::onOpenSequences)
+        ToolbarItem.Minimize -> MinimizeButton(session.toolbarMinimized, actions::onToggleMinimized)
+        ToolbarItem.Close -> ToolbarButton(Icons.Rounded.Close, stringResource(R.string.overlay_close), actions::onClose)
     }
-    ToolbarButton(Icons.Rounded.Tune, stringResource(R.string.overlay_settings), actions::onOpenSettings)
-    if (session.isMulti) {
-        ToolbarButton(Icons.Rounded.FolderOpen, stringResource(R.string.overlay_sequences), actions::onOpenSequences)
+}
+
+/** Minimize or maximize the toolbar. The icon turns over to show what the next press does. */
+@Composable
+private fun MinimizeButton(minimized: Boolean, onClick: () -> Unit) {
+    val label = stringResource(if (minimized) R.string.overlay_maximize else R.string.overlay_minimize)
+    IconButton(
+        onClick = withHaptic(onClick = onClick),
+        modifier = Modifier.semantics { contentDescription = label },
+        shapes = IconButtonDefaults.shapes(),
+    ) {
+        val scaleSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+        val fadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+        AnimatedContent(
+            targetState = minimized,
+            transitionSpec = {
+                (scaleIn(scaleSpec, initialScale = 0.6f) + fadeIn(fadeSpec)) togetherWith
+                    (scaleOut(scaleSpec, targetScale = 0.6f) + fadeOut(fadeSpec))
+            },
+            label = "minimize-icon",
+        ) { isMinimized ->
+            Icon(if (isMinimized) Icons.Rounded.OpenInFull else Icons.Rounded.CloseFullscreen, contentDescription = null)
+        }
     }
-    ToolbarButton(Icons.Rounded.Close, stringResource(R.string.overlay_close), actions::onClose)
 }
 
 /**
@@ -192,7 +250,7 @@ private fun rememberTouchExplorationEnabled(): Boolean {
 @Composable
 private fun ToolbarButton(icon: ImageVector, label: String, onClick: () -> Unit, enabled: Boolean = true) {
     IconButton(
-        onClick = onClick,
+        onClick = withHaptic(onClick = onClick),
         enabled = enabled,
         shapes = IconButtonDefaults.shapes(),
     ) {

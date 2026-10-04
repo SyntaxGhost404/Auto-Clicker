@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.PrivacyTip
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Upload
+import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -61,9 +62,14 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.view.HapticFeedbackConstantsCompat
+import androidx.core.view.ViewCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.syntaxghost404.tappilot.AppGraph
@@ -84,6 +90,7 @@ import io.github.syntaxghost404.tappilot.ui.format.TimeUnitChoice
 import io.github.syntaxghost404.tappilot.ui.navigation.Settings
 import io.github.syntaxghost404.tappilot.ui.navigation.TopLevelRoute
 import io.github.syntaxghost404.tappilot.ui.theme.supportsDynamicColor
+import io.github.syntaxghost404.tappilot.ui.withHaptic
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -105,6 +112,7 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
     fun setTapFeedback(enabled: Boolean) = update { graph.settings.setTapFeedback(enabled) }
     fun setKeepScreenOn(enabled: Boolean) = update { graph.settings.setKeepScreenOn(enabled) }
     fun setStopOnScreenOff(enabled: Boolean) = update { graph.settings.setStopOnScreenOff(enabled) }
+    fun setHapticFeedback(enabled: Boolean) = update { graph.settings.setHapticFeedback(enabled) }
     fun setDefaultDelay(ms: Long) = update { graph.settings.setDefaultDelay(ms) }
     fun setDefaultHold(ms: Long) = update { graph.settings.setDefaultHold(ms) }
     fun setDefaultSwipe(ms: Long) = update { graph.settings.setDefaultSwipe(ms) }
@@ -119,6 +127,7 @@ interface SettingsActions {
     fun onTapFeedback(enabled: Boolean)
     fun onKeepScreenOn(enabled: Boolean)
     fun onStopOnScreenOff(enabled: Boolean)
+    fun onHapticFeedback(enabled: Boolean)
     fun onDefaultDelay(ms: Long)
     fun onDefaultHold(ms: Long)
     fun onDefaultSwipe(ms: Long)
@@ -166,6 +175,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
             appearance(settings, actions)
+            haptics(settings, actions)
             controls(settings, runActive, actions)
             running(settings, actions)
             defaults(settings, onEdit = { editing = it })
@@ -242,6 +252,27 @@ private fun LazyListScope.appearance(settings: AppSettings, actions: SettingsAct
                 onCheckedChange = actions::onDynamicColor,
             )
         }
+    }
+}
+
+private fun LazyListScope.haptics(settings: AppSettings, actions: SettingsActions) {
+    group("haptics", R.string.settings_haptics)
+    item(key = "haptic-feedback") {
+        val view = LocalView.current
+        SwitchItem(
+            index = 0, count = 1,
+            icon = Icons.Rounded.Vibration,
+            title = stringResource(R.string.settings_haptic_feedback),
+            supporting = stringResource(R.string.settings_haptic_feedback_support),
+            checked = settings.hapticFeedback,
+            onCheckedChange = { enabled ->
+                // Haptics are still off while this turns them on, so play this one directly. Turning
+                // them off stays silent.
+                if (enabled) ViewCompat.performHapticFeedback(view, HapticFeedbackConstantsCompat.TOGGLE_ON)
+                actions.onHapticFeedback(enabled)
+            },
+            haptic = false,
+        )
     }
 }
 
@@ -336,7 +367,7 @@ private fun ControlsLockedNotice(visible: Boolean, onStop: () -> Unit) {
                 }
                 Spacer(Modifier.size(12.dp))
                 Button(
-                    onClick = onStop,
+                    onClick = withHaptic(HapticFeedbackType.ToggleOff, onStop),
                     shapes = ButtonDefaults.shapes(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = colors.onSecondaryContainer,
@@ -395,10 +426,16 @@ private fun MarkerSizePanel(sizeDp: Int, enabled: Boolean, onChange: (Int) -> Un
                 MarkerPreview(previewDp)
             }
         }
+        val haptics = LocalHapticFeedback.current
         Slider(
             state = state,
             enabled = enabled,
-            onValueChange = { state.value = it },
+            onValueChange = {
+                if (it.roundToInt() != state.value.roundToInt()) {
+                    haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                }
+                state.value = it
+            },
             onValueChangeFinished = { onChange(state.value.roundToInt()) },
         )
     }
@@ -509,12 +546,17 @@ private fun SwitchItem(
     onCheckedChange: (Boolean) -> Unit,
     icon: ImageVector? = null,
     enabled: Boolean = true,
+    haptic: Boolean = true,
 ) {
     // Neutral container in both states: the switch already shows the state, so the row stays calm.
     val neutral = ListItemDefaults.segmentedColors()
+    val haptics = LocalHapticFeedback.current
     SegmentedListItem(
         checked = checked,
-        onCheckedChange = onCheckedChange,
+        onCheckedChange = {
+            if (haptic) haptics.performHapticFeedback(if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
+            onCheckedChange(it)
+        },
         enabled = enabled,
         shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
         colors = ListItemDefaults.segmentedColors(

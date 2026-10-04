@@ -136,6 +136,7 @@ object Fixtures {
         override fun onTapFeedback(enabled: Boolean) = Unit
         override fun onKeepScreenOn(enabled: Boolean) = Unit
         override fun onStopOnScreenOff(enabled: Boolean) = Unit
+        override fun onHapticFeedback(enabled: Boolean) = Unit
         override fun onDefaultDelay(ms: Long) = Unit
         override fun onDefaultHold(ms: Long) = Unit
         override fun onDefaultSwipe(ms: Long) = Unit

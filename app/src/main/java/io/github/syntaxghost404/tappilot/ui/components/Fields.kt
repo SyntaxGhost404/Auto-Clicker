@@ -43,6 +43,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -77,6 +79,7 @@ fun <T> ConnectedChoiceGroup(
     contentPadding: PaddingValues? = null,
     enabled: Boolean = true,
 ) {
+    val haptics = LocalHapticFeedback.current
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
@@ -105,7 +108,10 @@ fun <T> ConnectedChoiceGroup(
             }
             ToggleButton(
                 checked = checked,
-                onCheckedChange = { onSelect(option) },
+                onCheckedChange = {
+                    if (option != selected) haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                    onSelect(option)
+                },
                 modifier = Modifier
                     .weight(1f)
                     .semantics { role = Role.RadioButton },
@@ -394,12 +400,16 @@ fun VariationEditor(variation: Variation, onChange: (Variation) -> Unit, modifie
                 }
             }
             val description = stringResource(R.string.variation_timing_value, variation.timingPercent)
+            val haptics = LocalHapticFeedback.current
             Slider(
                 state = sliderState,
                 onValueChange = {
                     sliderState.value = it
                     val percent = it.roundToInt()
-                    if (percent != variation.timingPercent) onChange(variation.copy(timingPercent = percent))
+                    if (percent != variation.timingPercent) {
+                        haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                        onChange(variation.copy(timingPercent = percent))
+                    }
                 },
                 modifier = Modifier.semantics { stateDescription = description },
             )
@@ -417,10 +427,14 @@ fun SwitchRow(
     supporting: String? = null,
     enabled: Boolean = true,
 ) {
+    val haptics = LocalHapticFeedback.current
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange),
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch) {
+                haptics.performHapticFeedback(if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
+                onCheckedChange(it)
+            },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {

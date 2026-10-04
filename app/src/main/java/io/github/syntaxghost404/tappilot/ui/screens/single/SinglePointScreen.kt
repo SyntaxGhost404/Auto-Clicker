@@ -37,6 +37,7 @@ import io.github.syntaxghost404.tappilot.ui.components.FormCard
 import io.github.syntaxghost404.tappilot.ui.components.SectionTitle
 import io.github.syntaxghost404.tappilot.ui.components.StopRuleEditor
 import io.github.syntaxghost404.tappilot.ui.components.VariationEditor
+import io.github.syntaxghost404.tappilot.ui.withHaptic
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -82,7 +83,7 @@ fun SinglePointScreen(quick: Script?, actions: SinglePointActions, snackbarHostS
             MediumExtendedFloatingActionButton(
                 text = { Text(stringResource(R.string.action_start)) },
                 icon = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
-                onClick = actions::onStart,
+                onClick = withHaptic(onClick = actions::onStart),
             )
         },
     ) { padding ->

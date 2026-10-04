@@ -62,6 +62,7 @@ import io.github.syntaxghost404.tappilot.ui.components.TopLevelScaffold
 import io.github.syntaxghost404.tappilot.ui.format.Summaries
 import io.github.syntaxghost404.tappilot.ui.navigation.Sequences
 import io.github.syntaxghost404.tappilot.ui.navigation.TopLevelRoute
+import io.github.syntaxghost404.tappilot.ui.withHaptic
 
 interface SequencesActions {
     fun onSelectTab(tab: TopLevelRoute)
@@ -105,7 +106,7 @@ fun SequencesScreen(
             MediumExtendedFloatingActionButton(
                 text = { Text(stringResource(R.string.action_new_sequence)) },
                 icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
-                onClick = actions::onNew,
+                onClick = withHaptic(onClick = actions::onNew),
                 expanded = expandedFab,
             )
         },
@@ -157,7 +158,7 @@ private fun SequenceRow(script: Script, index: Int, count: Int, actions: Sequenc
         },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                FilledTonalIconButton(onClick = { actions.onStart(script.id) }, shapes = IconButtonDefaults.shapes()) {
+                FilledTonalIconButton(onClick = withHaptic { actions.onStart(script.id) }, shapes = IconButtonDefaults.shapes()) {
                     Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.action_start))
                 }
                 Box {

@@ -105,7 +105,9 @@ fun TapPilotRoot(pendingStart: OverlayMode?, onPendingStartHandled: () -> Unit, 
     val loaded = settings ?: return
     LaunchedEffect(Unit) { onReady() }
     TapPilotTheme(themeMode = loaded.themeMode, dynamicColor = loaded.dynamicColor) {
-        AppNavigation(graph, loaded, pendingStart, onPendingStartHandled)
+        ProvideHaptics(loaded.hapticFeedback) {
+            AppNavigation(graph, loaded, pendingStart, onPendingStartHandled)
+        }
     }
 }
 
@@ -456,6 +458,9 @@ private fun AppNavigation(
                             }
                             override fun onStopOnScreenOff(enabled: Boolean) {
                                 viewModel.setStopOnScreenOff(enabled)
+                            }
+                            override fun onHapticFeedback(enabled: Boolean) {
+                                viewModel.setHapticFeedback(enabled)
                             }
                             override fun onDefaultDelay(ms: Long) {
                                 viewModel.setDefaultDelay(ms)

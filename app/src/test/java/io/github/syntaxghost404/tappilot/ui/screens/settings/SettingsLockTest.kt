@@ -40,7 +40,7 @@ import org.robolectric.annotation.GraphicsMode
  */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w360dp-h1280dp-xhdpi")
+@Config(sdk = [36], qualifiers = "w360dp-h1600dp-xhdpi")
 class SettingsLockTest {
     @get:Rule
     val compose = createComposeRule()
@@ -57,6 +57,7 @@ class SettingsLockTest {
         override fun onTapFeedback(enabled: Boolean) = record("tap-ripples")
         override fun onKeepScreenOn(enabled: Boolean) = record("keep-screen-on")
         override fun onStopOnScreenOff(enabled: Boolean) = record("stop-on-screen-off")
+        override fun onHapticFeedback(enabled: Boolean) = record("haptics")
         override fun onDefaultDelay(ms: Long) = record("delay")
         override fun onDefaultHold(ms: Long) = record("hold")
         override fun onDefaultSwipe(ms: Long) = record("swipe")
@@ -124,8 +125,9 @@ class SettingsLockTest {
         show(running = true)
 
         node(R.string.theme_dark).assertIsEnabled().performClick()
+        node(R.string.settings_haptic_feedback).assertIsEnabled().performClick()
         node(R.string.settings_stop_screen_off).assertIsEnabled().performClick()
-        assertEquals(listOf("theme", "stop-on-screen-off"), calls)
+        assertEquals(listOf("theme", "haptics", "stop-on-screen-off"), calls)
     }
 
     @Test

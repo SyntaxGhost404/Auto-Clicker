@@ -30,11 +30,8 @@ internal data class ControlsLayout(val vertical: Boolean, val scale: Float) {
         const val SCREEN_MARGIN_DP = 8f
         const val MIN_SCALE = 0.6f
 
-        /** Buttons on the toolbar besides the play button. */
-        fun buttonCount(mode: OverlayMode): Int = when (mode) {
-            OverlayMode.Multi -> 6
-            OverlayMode.Single -> 2
-        }
+        /** Buttons on the expanded toolbar besides the play button. */
+        fun buttonCount(mode: OverlayMode): Int = toolbarItems(mode).size
 
         /** Length of the expanded controls along the toolbar, in dp at scale 1. */
         fun lengthDp(mode: OverlayMode): Float =
@@ -55,6 +52,29 @@ internal data class ControlsLayout(val vertical: Boolean, val scale: Float) {
                 }
             }
         }
+    }
+}
+
+/** The floating toolbar's buttons besides the play button. */
+internal enum class ToolbarItem { AddTap, AddSwipe, RemoveLast, Settings, Sequences, Minimize, Close }
+
+/**
+ * The saved-sequences button is kept out of the toolbar, which offers [ToolbarItem.Minimize] in
+ * its place. Its button, help entry, dialog and action all remain; set this to bring them back.
+ */
+internal const val SHOW_SEQUENCES_BUTTON = false
+
+/** The buttons of the expanded toolbar, in order. Minimized, sequences keep only Minimize. */
+internal fun toolbarItems(mode: OverlayMode): List<ToolbarItem> = when (mode) {
+    OverlayMode.Single -> listOf(ToolbarItem.Settings, ToolbarItem.Close)
+    OverlayMode.Multi -> buildList {
+        add(ToolbarItem.AddTap)
+        add(ToolbarItem.AddSwipe)
+        add(ToolbarItem.RemoveLast)
+        add(ToolbarItem.Settings)
+        if (SHOW_SEQUENCES_BUTTON) add(ToolbarItem.Sequences)
+        add(ToolbarItem.Minimize)
+        add(ToolbarItem.Close)
     }
 }
 

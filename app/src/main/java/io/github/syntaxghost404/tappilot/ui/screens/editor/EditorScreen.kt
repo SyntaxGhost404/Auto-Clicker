@@ -74,6 +74,7 @@ import io.github.syntaxghost404.tappilot.ui.components.VariationEditor
 import io.github.syntaxghost404.tappilot.ui.format.Durations
 import io.github.syntaxghost404.tappilot.ui.format.Summaries
 import io.github.syntaxghost404.tappilot.ui.format.TimeUnitChoice
+import io.github.syntaxghost404.tappilot.ui.withHaptic
 import kotlin.math.roundToInt
 
 interface EditorActions {
@@ -181,7 +182,7 @@ private fun EditorContent(script: Script, padding: PaddingValues, actions: Edito
     ) {
         item(key = "start") {
             Button(
-                onClick = actions::onStart,
+                onClick = withHaptic(onClick = actions::onStart),
                 shapes = ButtonDefaults.shapes(),
                 modifier = Modifier
                     .fillMaxWidth()

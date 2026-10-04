@@ -212,6 +212,16 @@ class ScreenshotTest {
         OverlayScene(s, controlsAt = DpOffset(8.dp, 16.dp))
     }
 
+    @Test fun overlayMinimized() = snap("28_overlay_minimized") {
+        OverlayScene(session(OverlayMode.Multi, Fixtures.sequence).apply { toolbarMinimized = true })
+    }
+
+    @Test
+    @Config(qualifiers = LANDSCAPE)
+    fun overlayLandscapeMinimized() = snap("29_overlay_landscape_minimized_dark", dark = true) {
+        OverlayScene(landscapeSession(ControlSize.Large).apply { toolbarMinimized = true }, darkApp = true, controlsAt = DpOffset(8.dp, 16.dp))
+    }
+
     private fun session(mode: OverlayMode, script: Script) =
         OverlaySession(mode, script, AppSettings(onboardingDone = true), persisted = true)
 
@@ -298,6 +308,7 @@ class ScreenshotTest {
         override fun onRemoveLast() = Unit
         override fun onOpenSettings() = Unit
         override fun onOpenSequences() = Unit
+        override fun onToggleMinimized() = Unit
         override fun onClose() = Unit
     }
 

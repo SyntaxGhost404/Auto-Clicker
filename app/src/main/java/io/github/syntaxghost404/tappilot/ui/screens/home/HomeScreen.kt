@@ -53,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -73,6 +74,7 @@ import io.github.syntaxghost404.tappilot.ui.format.Durations
 import io.github.syntaxghost404.tappilot.ui.format.Summaries
 import io.github.syntaxghost404.tappilot.ui.navigation.Home
 import io.github.syntaxghost404.tappilot.ui.navigation.TopLevelRoute
+import io.github.syntaxghost404.tappilot.ui.withHaptic
 
 data class HomeState(
     val service: ServiceState,
@@ -181,7 +183,7 @@ fun HomeScreen(state: HomeState, actions: HomeActions) {
                                 },
                                 trailingContent = {
                                     FilledTonalIconButton(
-                                        onClick = { actions.onStartSequence(script.id) },
+                                        onClick = withHaptic { actions.onStartSequence(script.id) },
                                         shapes = IconButtonDefaults.shapes(),
                                     ) {
                                         Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.action_start))
@@ -291,7 +293,7 @@ private fun LiveCard(status: OverlayStatus.Visible, actions: HomeActions) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (status.running) {
                     Button(
-                        onClick = actions::onStop,
+                        onClick = withHaptic(HapticFeedbackType.ToggleOff, actions::onStop),
                         shapes = ButtonDefaults.shapes(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -305,7 +307,7 @@ private fun LiveCard(status: OverlayStatus.Visible, actions: HomeActions) {
                     }
                 }
                 OutlinedButton(
-                    onClick = actions::onHideControls,
+                    onClick = withHaptic(onClick = actions::onHideControls),
                     shapes = ButtonDefaults.shapes(),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSecondaryContainer),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.4f)),
@@ -409,7 +411,7 @@ private fun SequenceCard(actions: HomeActions) {
 private fun PrimaryCardButton(text: String, icon: ImageVector, colors: OnCardColors, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val height = ButtonDefaults.MediumContainerHeight
     Button(
-        onClick = onClick,
+        onClick = withHaptic(onClick = onClick),
         shapes = ButtonDefaults.shapes(),
         colors = ButtonDefaults.buttonColors(containerColor = colors.strong, contentColor = colors.onStrong),
         modifier = modifier.heightIn(min = height),

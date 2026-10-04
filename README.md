@@ -13,7 +13,10 @@ anywhere on screen and Tap Pilot taps and swipes for you at the rhythm you choos
 - **Natural variation**: optional random tap position and timing.
 - **Floating controls**: a draggable floating toolbar that turns horizontal when a vertical one
   would not fit, as on a phone held sideways. It collapses to a single button while running and
-  moves itself out of the way of your targets.
+  moves itself out of the way of your targets. For sequences, Minimize shrinks it to Start and
+  Maximize.
+- **Haptic feedback**: short vibrations for taps, drags and runs starting or ending, following the
+  phone's own vibration settings. It can be turned off in Settings.
 - **Library**: rename, duplicate, delete with undo, and import or export sequences as JSON.
 - Quick Settings tile, launcher shortcuts, dynamic color, light and dark themes.
 - **Private by design**: no internet permission, no ads, no analytics. The accessibility service

@@ -24,10 +24,11 @@ data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.System,
     val dynamicColor: Boolean = true,
     val markerSizeDp: Int = DEFAULT_MARKER_DP,
-    val controlSize: ControlSize = ControlSize.Regular,
+    val controlSize: ControlSize = DEFAULT_CONTROL_SIZE,
     val tapFeedback: Boolean = true,
     val keepScreenOn: Boolean = true,
     val stopOnScreenOff: Boolean = true,
+    val hapticFeedback: Boolean = true,
     val defaultDelayMs: Long = Timing.DEFAULT_DELAY_MS,
     val defaultHoldMs: Long = Timing.DEFAULT_HOLD_MS,
     val defaultSwipeMs: Long = Timing.DEFAULT_SWIPE_MS,
@@ -42,6 +43,9 @@ data class AppSettings(
         const val MIN_MARKER_DP = 40
         const val MAX_MARKER_DP = 88
         const val DEFAULT_MARKER_DP = 56
+
+        /** Until the user picks a size, the controls stay as small as they come. */
+        val DEFAULT_CONTROL_SIZE = ControlSize.Compact
     }
 }
 
@@ -58,6 +62,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     suspend fun setTapFeedback(enabled: Boolean) = edit { it[FEEDBACK] = enabled }
     suspend fun setKeepScreenOn(enabled: Boolean) = edit { it[KEEP_ON] = enabled }
     suspend fun setStopOnScreenOff(enabled: Boolean) = edit { it[STOP_SCREEN_OFF] = enabled }
+    suspend fun setHapticFeedback(enabled: Boolean) = edit { it[HAPTICS] = enabled }
     suspend fun setDefaultDelay(ms: Long) = edit { it[DEFAULT_DELAY] = ms.coerceIn(0L, Timing.MAX_DELAY_MS) }
     suspend fun setDefaultHold(ms: Long) =
         edit { it[DEFAULT_HOLD] = ms.coerceIn(Timing.MIN_HOLD_MS, Timing.MAX_GESTURE_MS) }
@@ -83,10 +88,11 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         themeMode = enumOr(this[THEME], ThemeMode.System),
         dynamicColor = this[DYNAMIC] ?: true,
         markerSizeDp = this[MARKER] ?: AppSettings.DEFAULT_MARKER_DP,
-        controlSize = enumOr(this[CONTROL_SIZE], ControlSize.Regular),
+        controlSize = enumOr(this[CONTROL_SIZE], AppSettings.DEFAULT_CONTROL_SIZE),
         tapFeedback = this[FEEDBACK] ?: true,
         keepScreenOn = this[KEEP_ON] ?: true,
         stopOnScreenOff = this[STOP_SCREEN_OFF] ?: true,
+        hapticFeedback = this[HAPTICS] ?: true,
         defaultDelayMs = this[DEFAULT_DELAY] ?: Timing.DEFAULT_DELAY_MS,
         defaultHoldMs = this[DEFAULT_HOLD] ?: Timing.DEFAULT_HOLD_MS,
         defaultSwipeMs = this[DEFAULT_SWIPE] ?: Timing.DEFAULT_SWIPE_MS,
@@ -108,6 +114,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         val FEEDBACK = booleanPreferencesKey("tap_feedback")
         val KEEP_ON = booleanPreferencesKey("keep_screen_on")
         val STOP_SCREEN_OFF = booleanPreferencesKey("stop_on_screen_off")
+        val HAPTICS = booleanPreferencesKey("haptic_feedback")
         val DEFAULT_DELAY = longPreferencesKey("default_delay_ms")
         val DEFAULT_HOLD = longPreferencesKey("default_hold_ms")
         val DEFAULT_SWIPE = longPreferencesKey("default_swipe_ms")

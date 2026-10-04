@@ -21,6 +21,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.content.ContextCompat
+import androidx.core.view.HapticFeedbackConstantsCompat
+import androidx.core.view.ViewCompat
 import io.github.syntaxghost404.tappilot.AppGraph
 import io.github.syntaxghost404.tappilot.R
 import io.github.syntaxghost404.tappilot.core.data.AppSettings
@@ -49,6 +51,7 @@ import io.github.syntaxghost404.tappilot.overlay.ui.PathLayer
 import io.github.syntaxghost404.tappilot.overlay.ui.TargetMarker
 import io.github.syntaxghost404.tappilot.service.OverlayStatus
 import io.github.syntaxghost404.tappilot.service.TapPilotRuntime
+import io.github.syntaxghost404.tappilot.ui.ProvideHaptics
 import io.github.syntaxghost404.tappilot.ui.theme.TapPilotTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
@@ -101,6 +104,7 @@ internal class OverlayManager(
     /** The floating controls' root view and its window's top-left corner, for integration tests. */
     internal val controlsView: View? get() = controls?.view
     internal val controlsOrigin: Point? get() = controls?.params?.let { Point(it.x, it.y) }
+    internal val markerViews: List<View> get() = markers.values.map { it.window.view }
 
     private val density: Float get() = context.resources.displayMetrics.density
     private fun dp(value: Float): Int = (value * density).roundToInt()
@@ -276,6 +280,9 @@ internal class OverlayManager(
         override fun onOpenSequences() {
             session?.dialog = OverlayDialog.OpenSequence
         }
+        override fun onToggleMinimized() {
+            session?.let { it.toolbarMinimized = !it.toolbarMinimized }
+        }
         override fun onClose() = close()
     }
 
@@ -361,16 +368,23 @@ internal class OverlayManager(
     // region Running
 
     private fun toggleRun() {
-        if (runJob?.isActive == true) stopRun() else startRun()
+        if (runJob?.isActive == true) {
+            haptic(controls?.view, HapticFeedbackConstantsCompat.TOGGLE_OFF)
+            stopRun()
+        } else {
+            startRun()
+        }
     }
 
     private fun startRun() {
         val s = session ?: return
         val childScope = sessionScope ?: return
         if (s.script.steps.isEmpty()) {
+            haptic(controls?.view, HapticFeedbackConstantsCompat.REJECT)
             toast(R.string.overlay_need_target)
             return
         }
+        haptic(controls?.view, HapticFeedbackConstantsCompat.TOGGLE_ON)
         s.dialog = null
         moveControlsAwayFromTargets(s)
         val script = s.script
@@ -387,9 +401,18 @@ internal class OverlayManager(
             try {
                 val result = runner.run(script, planner, runListener(s, script))
                 when (result.outcome) {
-                    RunOutcome.Finished -> s.finishedCount++
-                    RunOutcome.Rejected -> toast(R.string.service_lost)
-                    RunOutcome.NothingToRun -> toast(R.string.overlay_need_target)
+                    RunOutcome.Finished -> {
+                        s.finishedCount++
+                        haptic(controls?.view, HapticFeedbackConstantsCompat.CONFIRM)
+                    }
+                    RunOutcome.Rejected -> {
+                        haptic(controls?.view, HapticFeedbackConstantsCompat.REJECT)
+                        toast(R.string.service_lost)
+                    }
+                    RunOutcome.NothingToRun -> {
+                        haptic(controls?.view, HapticFeedbackConstantsCompat.REJECT)
+                        toast(R.string.overlay_need_target)
+                    }
                 }
             } finally {
                 s.running = false
@@ -505,7 +528,9 @@ internal class OverlayManager(
 
     @Composable
     private fun Themed(s: OverlaySession, content: @Composable () -> Unit) {
-        TapPilotTheme(themeMode = s.settings.themeMode, dynamicColor = s.settings.dynamicColor, content = content)
+        TapPilotTheme(themeMode = s.settings.themeMode, dynamicColor = s.settings.dynamicColor) {
+            ProvideHaptics(s.settings.hapticFeedback, content)
+        }
     }
 
     private fun createPathLayer(s: OverlaySession): OverlayWindow {
@@ -529,6 +554,7 @@ internal class OverlayManager(
                 override fun onDragStart() {
                     startX = window.params.x
                     startY = window.params.y
+                    haptic(window.view, HapticFeedbackConstantsCompat.GESTURE_THRESHOLD_ACTIVATE)
                 }
 
                 override fun onDrag(totalDx: Float, totalDy: Float) {
@@ -537,6 +563,7 @@ internal class OverlayManager(
                 }
 
                 override fun onDragEnd() {
+                    haptic(window.view, HapticFeedbackConstantsCompat.GESTURE_END)
                     val x = window.params.x
                     val y = window.params.y
                     graph.ioScope.launch { graph.settings.setControlsPosition(x, y) }
@@ -693,6 +720,7 @@ internal class OverlayManager(
                 override fun onDragStart() {
                     marker.dragging = true
                     start = pointOf(s.script, handle) ?: PointF()
+                    haptic(marker.window.view, HapticFeedbackConstantsCompat.GESTURE_THRESHOLD_ACTIVATE)
                 }
 
                 override fun onDrag(totalDx: Float, totalDy: Float) {
@@ -706,6 +734,7 @@ internal class OverlayManager(
 
                 override fun onDragEnd() {
                     marker.dragging = false
+                    haptic(marker.window.view, HapticFeedbackConstantsCompat.GESTURE_END)
                 }
 
                 override fun onTap() {
@@ -765,6 +794,11 @@ internal class OverlayManager(
                 progress = s.progress,
             ),
         )
+    }
+
+    /** Plays [feedback], a [HapticFeedbackConstantsCompat] value, if the user wants haptics. */
+    private fun haptic(view: View?, feedback: Int) {
+        if (view != null && session?.settings?.hapticFeedback == true) ViewCompat.performHapticFeedback(view, feedback)
     }
 
     private fun toast(@StringRes text: Int) {

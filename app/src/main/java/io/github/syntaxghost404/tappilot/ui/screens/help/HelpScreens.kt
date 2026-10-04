@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.BatteryAlert
 import androidx.compose.material.icons.rounded.BatteryFull
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CloseFullscreen
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Lock
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.RoundedPolygon
 import io.github.syntaxghost404.tappilot.BuildConfig
 import io.github.syntaxghost404.tappilot.R
+import io.github.syntaxghost404.tappilot.overlay.SHOW_SEQUENCES_BUTTON
 import io.github.syntaxghost404.tappilot.ui.ServiceState
 import io.github.syntaxghost404.tappilot.ui.components.DetailScaffold
 import io.github.syntaxghost404.tappilot.ui.components.FormCard
@@ -90,16 +92,17 @@ fun HowToScreen(onBack: () -> Unit) {
                 primary = false,
             )
             SectionTitle(stringResource(R.string.howto_controls_title), Modifier.padding(top = 20.dp))
-            val controls = listOf(
-                Icons.Rounded.PlayArrow to R.string.howto_control_play,
-                Icons.Rounded.AdsClick to R.string.howto_control_add_tap,
-                Icons.Rounded.Swipe to R.string.howto_control_add_swipe,
-                Icons.AutoMirrored.Rounded.Undo to R.string.howto_control_remove,
-                Icons.Rounded.Tune to R.string.howto_control_settings,
-                Icons.Rounded.FolderOpen to R.string.howto_control_sequences,
-                Icons.Rounded.Close to R.string.howto_control_close,
-                Icons.Rounded.OpenWith to R.string.howto_control_drag,
-            )
+            val controls = buildList {
+                add(Icons.Rounded.PlayArrow to R.string.howto_control_play)
+                add(Icons.Rounded.AdsClick to R.string.howto_control_add_tap)
+                add(Icons.Rounded.Swipe to R.string.howto_control_add_swipe)
+                add(Icons.AutoMirrored.Rounded.Undo to R.string.howto_control_remove)
+                add(Icons.Rounded.Tune to R.string.howto_control_settings)
+                if (SHOW_SEQUENCES_BUTTON) add(Icons.Rounded.FolderOpen to R.string.howto_control_sequences)
+                add(Icons.Rounded.CloseFullscreen to R.string.howto_control_minimize)
+                add(Icons.Rounded.Close to R.string.howto_control_close)
+                add(Icons.Rounded.OpenWith to R.string.howto_control_drag)
+            }
             controls.forEachIndexed { index, (icon, text) ->
                 SegmentedListItem(
                     shapes = ListItemDefaults.segmentedShapes(index = index, count = controls.size),

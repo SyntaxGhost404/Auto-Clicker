@@ -2,10 +2,13 @@ package io.github.syntaxghost404.tappilot.overlay
 
 import android.graphics.Rect
 import android.os.Looper
+import android.os.SystemClock
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.compose.ui.platform.ViewRootForTest
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -178,6 +181,61 @@ class OverlayLayoutTest {
         assertVertical(true)
     }
 
+    @Test
+    @Config(qualifiers = PORTRAIT)
+    fun `minimizing leaves run and maximize, and maximizing brings every control back`() {
+        open(OverlayMode.Multi, ControlSize.Regular)
+        press(label(R.string.overlay_minimize))
+        idle(1_000)
+        assertMinimizedControlsVisible()
+        // The play button beside one 48 dp button in a toolbar padded by 8 dp: 140 x 92 dp.
+        val view = checkNotNull(manager.controlsView)
+        assertEquals(dp(92f).toFloat(), view.width.toFloat(), 3f)
+        assertEquals(dp(140f).toFloat(), view.height.toFloat(), 3f)
+
+        press(label(R.string.overlay_maximize))
+        idle(1_000)
+        assertAllControlsVisible(OverlayMode.Multi)
+        assertEquals(dp(380f).toFloat(), view.height.toFloat(), 3f)
+    }
+
+    @Test
+    @Config(qualifiers = PORTRAIT)
+    fun `maximizing near the bottom edge keeps every control on screen`() {
+        open(OverlayMode.Multi, ControlSize.Large)
+        press(label(R.string.overlay_minimize))
+        idle(1_000)
+        dragControlsBy(0f, screen().height().toFloat())
+        idle(500)
+        assertMinimizedControlsVisible()
+        assertTrue(windowBounds().bottom >= screen().bottom - dp(2f))
+
+        press(label(R.string.overlay_maximize))
+        idle(1_000)
+        assertAllControlsVisible(OverlayMode.Multi)
+    }
+
+    @Test
+    fun `minimized controls stay minimized through a run in landscape`() {
+        open(OverlayMode.Multi, ControlSize.Large)
+        manager.controlActions.onAddTap()
+        idle()
+        press(label(R.string.overlay_minimize))
+        idle(1_000)
+        assertMinimizedControlsVisible()
+        val found = controls()
+        assertTrue(found.getValue(label(R.string.overlay_maximize)).left >= found.getValue(label(R.string.overlay_play)).right)
+
+        manager.controlActions.onToggleRun()
+        idle(1_500)
+        assertTrue(manager.session!!.running)
+        assertEquals(dp(92f * 1.16f).toFloat(), checkNotNull(manager.controlsView).width.toFloat(), 3f)
+
+        manager.stopRun()
+        idle(1_500)
+        assertMinimizedControlsVisible()
+    }
+
     // region Helpers
 
     private fun open(mode: OverlayMode, size: ControlSize) {
@@ -219,15 +277,19 @@ class OverlayLayoutTest {
         return Rect(0, 0, bounds.width(), bounds.height())
     }
 
+    private val composeView: ViewGroup
+        get() = (checkNotNull(manager.controlsView) as ViewGroup).getChildAt(0) as ViewGroup
+
+    private fun semanticsRoot(): SemanticsNode = (composeView.getChildAt(0) as ViewRootForTest).semanticsOwner.rootSemanticsNode
+
+    private fun SemanticsNode.label(): String? = config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull()
+
     /** Screen bounds of every labelled control in the floating controls. */
     private fun controls(): Map<String, Rect> {
-        val frame = checkNotNull(manager.controlsView) as ViewGroup
-        val composeView = frame.getChildAt(0) as ViewGroup
-        val root = composeView.getChildAt(0) as ViewRootForTest
         val origin = checkNotNull(manager.controlsOrigin)
         val found = LinkedHashMap<String, Rect>()
         fun visit(node: SemanticsNode) {
-            val label = node.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull()
+            val label = node.label()
             if (label != null && label !in found) {
                 val left = origin.x + composeView.left + node.positionInRoot.x.roundToInt()
                 val top = origin.y + composeView.top + node.positionInRoot.y.roundToInt()
@@ -235,8 +297,33 @@ class OverlayLayoutTest {
             }
             node.children.forEach(::visit)
         }
-        visit(root.semanticsOwner.rootSemanticsNode)
+        visit(semanticsRoot())
         return found
+    }
+
+    /** Presses the control labelled [label] through its click action, as a screen reader would. */
+    private fun press(label: String) {
+        fun find(node: SemanticsNode): SemanticsNode? =
+            if (node.label() == label) node else node.children.firstNotNullOfOrNull { find(it) }
+        val node = checkNotNull(find(semanticsRoot())) { "no control labelled $label" }
+        checkNotNull(node.config.getOrNull(SemanticsActions.OnClick)?.action).invoke()
+    }
+
+    /** Drags the controls by ([dx], [dy]) pixels from an empty spot, like a finger would. */
+    private fun dragControlsBy(dx: Float, dy: Float) {
+        val frame = checkNotNull(manager.controlsView)
+        val start = dp(3f).toFloat()
+        val downAt = SystemClock.uptimeMillis()
+        fun send(action: Int, x: Float, y: Float) {
+            val event = MotionEvent.obtain(downAt, SystemClock.uptimeMillis(), action, x, y, 0)
+            frame.dispatchTouchEvent(event)
+            event.recycle()
+            idle(16)
+        }
+        send(MotionEvent.ACTION_DOWN, start, start)
+        send(MotionEvent.ACTION_MOVE, start + dx / 2, start + dy / 2)
+        send(MotionEvent.ACTION_MOVE, start + dx, start + dy)
+        send(MotionEvent.ACTION_UP, start + dx, start + dy)
     }
 
     private fun windowBounds(): Rect {
@@ -259,9 +346,18 @@ class OverlayLayoutTest {
                 add(label(R.string.overlay_remove_last))
             }
             add(label(R.string.overlay_settings))
-            if (mode == OverlayMode.Multi) add(label(R.string.overlay_sequences))
+            if (mode == OverlayMode.Multi) add(label(R.string.overlay_minimize))
             add(label(R.string.overlay_close))
         }
+        assertOnlyVisible(expected)
+    }
+
+    /** Minimized sequence controls show only the play button and maximize. */
+    private fun assertMinimizedControlsVisible() {
+        assertOnlyVisible(listOf(label(R.string.overlay_play), label(R.string.overlay_maximize)))
+    }
+
+    private fun assertOnlyVisible(expected: List<String>) {
         val found = controls()
         assertEquals(expected.toSet(), found.keys)
         val window = windowBounds()
