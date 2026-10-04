@@ -1,6 +1,7 @@
 package io.github.syntaxghost404.tappilot.overlay.ui
 
 import android.os.SystemClock
+import android.view.accessibility.AccessibilityManager
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
@@ -27,7 +28,9 @@ import androidx.compose.material.icons.rounded.Swipe
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.FloatingToolbarHorizontalFabPosition
 import androidx.compose.material3.FloatingToolbarVerticalFabPosition
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -38,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalFloatingToolbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -48,6 +52,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -56,9 +62,9 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
 import io.github.syntaxghost404.tappilot.R
-import io.github.syntaxghost404.tappilot.core.data.ControlSize
 import io.github.syntaxghost404.tappilot.core.engine.RunProgress
 import io.github.syntaxghost404.tappilot.core.model.StopMode
+import io.github.syntaxghost404.tappilot.overlay.ControlsLayout
 import io.github.syntaxghost404.tappilot.overlay.OverlaySession
 import io.github.syntaxghost404.tappilot.ui.components.MorphShape
 import io.github.syntaxghost404.tappilot.ui.format.Durations
@@ -75,45 +81,112 @@ internal interface ControlActions {
 }
 
 /**
- * The floating controls: a vertical floating toolbar with the play button as its FAB. While a run
- * is going the toolbar collapses into the FAB, which grows and shows live progress.
+ * The floating controls: a floating toolbar with the play button as its FAB. It runs vertically,
+ * or horizontally where a vertical one would not fit the screen (see [ControlsLayout]). While a
+ * run is going the toolbar collapses into the FAB, which grows and shows live progress.
  */
 @Composable
 internal fun ControlBar(session: OverlaySession, actions: ControlActions) {
-    val scale = when (session.settings.controlSize) {
-        ControlSize.Compact -> 0.86f
-        ControlSize.Regular -> 1f
-        ControlSize.Large -> 1.16f
-    }
+    val layout = session.controlsLayout
     val density = LocalDensity.current
-    CompositionLocalProvider(LocalDensity provides Density(density.density * scale, density.fontScale)) {
-        val hasSteps = session.script.steps.isNotEmpty()
-        VerticalFloatingToolbar(
-            expanded = !session.running,
-            modifier = Modifier.padding(6.dp),
-            colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
-            floatingActionButtonPosition = FloatingToolbarVerticalFabPosition.Top,
-            expandedShadowElevation = 3.dp,
-            collapsedShadowElevation = 3.dp,
-            floatingActionButton = { PlayButton(session, actions::onToggleRun) },
-        ) {
-            if (session.isMulti) {
-                ToolbarButton(Icons.Rounded.AdsClick, stringResource(R.string.overlay_add_tap), actions::onAddTap)
-                ToolbarButton(Icons.Rounded.Swipe, stringResource(R.string.overlay_add_swipe), actions::onAddSwipe)
-                ToolbarButton(
-                    Icons.AutoMirrored.Rounded.Undo,
-                    stringResource(R.string.overlay_remove_last),
-                    actions::onRemoveLast,
-                    enabled = hasSteps,
-                )
-            }
-            ToolbarButton(Icons.Rounded.Tune, stringResource(R.string.overlay_settings), actions::onOpenSettings)
-            if (session.isMulti) {
-                ToolbarButton(Icons.Rounded.FolderOpen, stringResource(R.string.overlay_sequences), actions::onOpenSequences)
-            }
-            ToolbarButton(Icons.Rounded.Close, stringResource(R.string.overlay_close), actions::onClose)
+    CompositionLocalProvider(LocalDensity provides Density(density.density * layout.scale, density.fontScale)) {
+        val expanded = !session.running
+        val collapsed = rememberCollapsedIntoFab(expanded)
+        val modifier = Modifier
+            .shrinkToFab(collapsed)
+            .padding(ControlsLayout.EDGE_DP.dp)
+        val colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors()
+        val fab: @Composable () -> Unit = { PlayButton(session, actions::onToggleRun) }
+        if (layout.vertical) {
+            VerticalFloatingToolbar(
+                expanded = expanded,
+                modifier = modifier,
+                colors = colors,
+                floatingActionButtonPosition = FloatingToolbarVerticalFabPosition.Top,
+                expandedShadowElevation = 3.dp,
+                collapsedShadowElevation = 3.dp,
+                floatingActionButton = fab,
+            ) { ToolbarButtons(session, actions) }
+        } else {
+            // The FAB leads, so it stays at the window's corner when the toolbar collapses.
+            HorizontalFloatingToolbar(
+                expanded = expanded,
+                floatingActionButton = fab,
+                modifier = modifier,
+                colors = colors,
+                floatingActionButtonPosition = FloatingToolbarHorizontalFabPosition.Start,
+                expandedShadowElevation = 3.dp,
+                collapsedShadowElevation = 3.dp,
+            ) { ToolbarButtons(session, actions) }
         }
     }
+}
+
+/** The toolbar's buttons. [ControlsLayout.buttonCount] must match. */
+@Composable
+private fun ToolbarButtons(session: OverlaySession, actions: ControlActions) {
+    val hasSteps = session.script.steps.isNotEmpty()
+    if (session.isMulti) {
+        ToolbarButton(Icons.Rounded.AdsClick, stringResource(R.string.overlay_add_tap), actions::onAddTap)
+        ToolbarButton(Icons.Rounded.Swipe, stringResource(R.string.overlay_add_swipe), actions::onAddSwipe)
+        ToolbarButton(
+            Icons.AutoMirrored.Rounded.Undo,
+            stringResource(R.string.overlay_remove_last),
+            actions::onRemoveLast,
+            enabled = hasSteps,
+        )
+    }
+    ToolbarButton(Icons.Rounded.Tune, stringResource(R.string.overlay_settings), actions::onOpenSettings)
+    if (session.isMulti) {
+        ToolbarButton(Icons.Rounded.FolderOpen, stringResource(R.string.overlay_sequences), actions::onOpenSequences)
+    }
+    ToolbarButton(Icons.Rounded.Close, stringResource(R.string.overlay_close), actions::onClose)
+}
+
+/**
+ * Whether the toolbar has finished collapsing into its FAB, read during layout. It turns false the
+ * moment the toolbar starts to expand again.
+ */
+@Composable
+private fun rememberCollapsedIntoFab(expanded: Boolean): () -> Boolean {
+    // Touch exploration keeps the Material toolbar expanded, so it never collapses then.
+    val touchExploration = rememberTouchExplorationEnabled()
+    val showToolbar = expanded || touchExploration
+    // Follows the toolbar's own expand animation, which uses the same spec.
+    val progress = remember { Animatable(if (showToolbar) 1f else 0f) }
+    val spec = FloatingToolbarDefaults.animationSpec<Float>()
+    LaunchedEffect(showToolbar) {
+        progress.animateTo(if (showToolbar) 1f else 0f, spec)
+    }
+    return { !showToolbar && !progress.isRunning && progress.value == 0f }
+}
+
+/**
+ * The Material toolbar keeps its expanded size after collapsing into its FAB, which would leave an
+ * invisible but touchable area beside the play button, swallowing taps meant for the app below.
+ * Once [collapsed], this reports only the play button's square so the window shrinks to it.
+ */
+private fun Modifier.shrinkToFab(collapsed: () -> Boolean): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    val side = ControlsLayout.COLLAPSED_DP.dp.roundToPx()
+    val shrink = collapsed()
+    val width = if (shrink) minOf(side, placeable.width) else placeable.width
+    val height = if (shrink) minOf(side, placeable.height) else placeable.height
+    layout(width, height) { placeable.placeRelative(0, 0) }
+}
+
+/** Whether a screen reader is exploring by touch. */
+@Composable
+private fun rememberTouchExplorationEnabled(): Boolean {
+    val context = LocalContext.current
+    val manager = remember(context) { context.getSystemService(AccessibilityManager::class.java) }
+    var enabled by remember(manager) { mutableStateOf(manager?.isTouchExplorationEnabled == true) }
+    DisposableEffect(manager) {
+        val listener = AccessibilityManager.TouchExplorationStateChangeListener { enabled = it }
+        manager?.addTouchExplorationStateChangeListener(listener)
+        onDispose { manager?.removeTouchExplorationStateChangeListener(listener) }
+    }
+    return enabled
 }
 
 @Composable

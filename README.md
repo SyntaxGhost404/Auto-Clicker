@@ -11,8 +11,9 @@ anywhere on screen and Tap Pilot taps and swipes for you at the rhythm you choos
 - **Stop rules**: run until stopped, for a set time, or for a number of cycles, with live progress
   on the floating play button.
 - **Natural variation**: optional random tap position and timing.
-- **Floating controls**: a draggable floating toolbar that collapses to a single button while
-  running and moves itself out of the way of your targets.
+- **Floating controls**: a draggable floating toolbar that turns horizontal when a vertical one
+  would not fit, as on a phone held sideways. It collapses to a single button while running and
+  moves itself out of the way of your targets.
 - **Library**: rename, duplicate, delete with undo, and import or export sequences as JSON.
 - Quick Settings tile, launcher shortcuts, dynamic color, light and dark themes.
 - **Private by design**: no internet permission, no ads, no analytics. The accessibility service

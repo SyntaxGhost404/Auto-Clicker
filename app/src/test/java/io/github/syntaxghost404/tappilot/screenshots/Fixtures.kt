@@ -44,6 +44,19 @@ object Fixtures {
         variation = Variation(position = true, timingPercent = 15),
     )
 
+    /** A sequence placed for a 1600 x 720 screen, clear of controls in the top-left corner. */
+    val landscapeSequence = Script(
+        id = "landscape",
+        name = "Daily reward",
+        canvas = CanvasSize(1600, 720),
+        steps = listOf<Step>(
+            TapStep(id = "l1", x = 1000f, y = 200f, holdMs = 10L, delayMs = 400L),
+            TapStep(id = "l2", x = 1340f, y = 320f, holdMs = 600L, delayMs = 250L),
+            SwipeStep(id = "l3", startX = 940f, startY = 520f, endX = 1400f, endY = 580f, durationMs = 450L, delayMs = 800L),
+        ),
+        stopRule = StopRule(mode = StopMode.Cycles, cycles = 50),
+    )
+
     val library = listOf(
         sequence,
         Script(
@@ -126,6 +139,7 @@ object Fixtures {
         override fun onDefaultDelay(ms: Long) = Unit
         override fun onDefaultHold(ms: Long) = Unit
         override fun onDefaultSwipe(ms: Long) = Unit
+        override fun onStopRun() = Unit
         override fun onExportAll() = Unit
         override fun onImport() = Unit
         override fun onHowTo() = Unit

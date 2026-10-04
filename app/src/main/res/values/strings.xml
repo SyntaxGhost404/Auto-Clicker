@@ -224,6 +224,8 @@
     <string name="settings_keep_screen_on">Keep screen on</string>
     <string name="settings_keep_screen_on_support">While the floating controls are visible</string>
     <string name="settings_running">While running</string>
+    <string name="settings_controls_locked_title">Locked while running</string>
+    <string name="settings_controls_locked_body">Stop the run to change these settings.</string>
     <string name="settings_stop_screen_off">Stop when the screen turns off</string>
     <string name="settings_stop_screen_off_support">Prevents taps from continuing in your pocket</string>
     <string name="settings_defaults">New steps</string>

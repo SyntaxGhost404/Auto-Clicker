@@ -75,6 +75,7 @@ fun <T> ConnectedChoiceGroup(
     showCheck: Boolean = false,
     size: ToggleButtonSize = ToggleButtonDefaults.size,
     contentPadding: PaddingValues? = null,
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = modifier,
@@ -92,14 +93,26 @@ fun <T> ConnectedChoiceGroup(
                 icon != null -> icon(option)
                 else -> null
             }
+            // Disabled toggle buttons all look alike, so keep the choice visible as disabled
+            // segmented buttons do.
+            val colors = if (!enabled && checked) {
+                ToggleButtonDefaults.colors(
+                    disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    disabledContentColor = MaterialTheme.colorScheme.surface,
+                )
+            } else {
+                ToggleButtonDefaults.colors()
+            }
             ToggleButton(
                 checked = checked,
                 onCheckedChange = { onSelect(option) },
                 modifier = Modifier
                     .weight(1f)
                     .semantics { role = Role.RadioButton },
+                enabled = enabled,
                 buttonSize = size,
                 shapes = shapes,
+                colors = colors,
                 icon = leading?.let { vector ->
                     { Icon(vector, contentDescription = null, modifier = Modifier.size(ToggleButtonDefaults.IconSize)) }
                 },

@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
@@ -28,12 +29,14 @@ import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
 import io.github.syntaxghost404.tappilot.appGraph
 import io.github.syntaxghost404.tappilot.core.data.AppSettings
+import io.github.syntaxghost404.tappilot.core.data.ControlSize
 import io.github.syntaxghost404.tappilot.core.data.OverlayMode
 import io.github.syntaxghost404.tappilot.core.data.ThemeMode
 import io.github.syntaxghost404.tappilot.core.engine.RunProgress
 import io.github.syntaxghost404.tappilot.core.model.Script
 import io.github.syntaxghost404.tappilot.core.model.SwipeStep
 import io.github.syntaxghost404.tappilot.core.model.TapStep
+import io.github.syntaxghost404.tappilot.overlay.ControlsLayout
 import io.github.syntaxghost404.tappilot.overlay.Handle
 import io.github.syntaxghost404.tappilot.overlay.HandlePart
 import io.github.syntaxghost404.tappilot.overlay.OverlayDialog
@@ -68,6 +71,9 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import kotlin.math.roundToInt
+
+/** The Redmi 13C held sideways. */
+private const val LANDSCAPE = "w800dp-h360dp-land-xhdpi"
 
 /**
  * Renders every screen and the floating controls so the design can be reviewed without a device.
@@ -136,6 +142,14 @@ class ScreenshotTest {
         SettingsScreen(AppSettings(onboardingDone = true, themeMode = ThemeMode.Dark), Fixtures.NoSettings, snackbar)
     }
 
+    @Test fun settingsLocked() = snap("23_settings_locked_while_running") {
+        SettingsScreen(AppSettings(onboardingDone = true), Fixtures.NoSettings, snackbar, runActive = true)
+    }
+
+    @Test fun settingsLockedDark() = snap("24_settings_locked_while_running_dark", dark = true) {
+        SettingsScreen(AppSettings(onboardingDone = true, themeMode = ThemeMode.Dark), Fixtures.NoSettings, snackbar, runActive = true)
+    }
+
     @Test fun howTo() = snap("14_how_to") { HowToScreen(onBack = {}) }
 
     @Test fun troubleshooting() = snap("15_troubleshooting") {
@@ -175,12 +189,48 @@ class ScreenshotTest {
         OverlayScene(s, darkApp = true, withDialog = true)
     }
 
+    @Test
+    @Config(qualifiers = LANDSCAPE)
+    fun overlayLandscape() = snap("25_overlay_landscape_regular") {
+        OverlayScene(landscapeSession(ControlSize.Regular), controlsAt = DpOffset(8.dp, 16.dp))
+    }
+
+    @Test
+    @Config(qualifiers = LANDSCAPE)
+    fun overlayLandscapeLarge() = snap("26_overlay_landscape_large_dark", dark = true) {
+        OverlayScene(landscapeSession(ControlSize.Large), darkApp = true, controlsAt = DpOffset(8.dp, 16.dp))
+    }
+
+    @Test
+    @Config(qualifiers = LANDSCAPE)
+    fun overlayLandscapeRunning() = snap("27_overlay_landscape_running") {
+        val s = landscapeSession(ControlSize.Large).apply {
+            running = true
+            activeStepId = "l2"
+            progress = RunProgress(cycles = 12, actions = 36, elapsedMs = 95_000L, fraction = 0.24f)
+        }
+        OverlayScene(s, controlsAt = DpOffset(8.dp, 16.dp))
+    }
+
     private fun session(mode: OverlayMode, script: Script) =
         OverlaySession(mode, script, AppSettings(onboardingDone = true), persisted = true)
 
+    /** A sequence on the Redmi 13C held sideways, laid out as the overlay would lay it out there. */
+    private fun landscapeSession(size: ControlSize) = OverlaySession(
+        OverlayMode.Multi,
+        Fixtures.landscapeSequence,
+        AppSettings(onboardingDone = true, controlSize = size),
+        persisted = true,
+    ).apply { controlsLayout = ControlsLayout.choose(800f, 360f, OverlayMode.Multi, size) }
+
     /** The overlay windows composed in one scene, over a stand-in for another app. */
     @Composable
-    private fun OverlayScene(session: OverlaySession, darkApp: Boolean = false, withDialog: Boolean = false) {
+    private fun OverlayScene(
+        session: OverlaySession,
+        darkApp: Boolean = false,
+        withDialog: Boolean = false,
+        controlsAt: DpOffset = DpOffset(4.dp, 150.dp),
+    ) {
         val density = LocalDensity.current
         val markerPx = with(density) { session.settings.markerSizeDp.dp.roundToPx() }
         Box(Modifier.fillMaxSize()) {
@@ -203,7 +253,7 @@ class ScreenshotTest {
                     ) { TargetMarker(state, session) }
                 }
             }
-            Box(Modifier.offset(x = 4.dp, y = 150.dp)) { ControlBar(session, NoControls) }
+            Box(Modifier.offset(x = controlsAt.x, y = controlsAt.y)) { ControlBar(session, NoControls) }
             if (withDialog) {
                 val graph = ApplicationProvider.getApplicationContext<Context>().appGraph
                 OverlayDialogHost(session, graph, NoDialog)

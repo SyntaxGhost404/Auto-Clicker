@@ -11,6 +11,7 @@ import android.graphics.Rect
 import android.os.Build
 import android.os.SystemClock
 import android.view.ContextThemeWrapper
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Toast
@@ -97,6 +98,10 @@ internal class OverlayManager(
     internal val markerWindowCount: Int get() = markers.size
     internal val controlsShown: Boolean get() = controls?.isShown == true
 
+    /** The floating controls' root view and its window's top-left corner, for integration tests. */
+    internal val controlsView: View? get() = controls?.view
+    internal val controlsOrigin: Point? get() = controls?.params?.let { Point(it.x, it.y) }
+
     private val density: Float get() = context.resources.displayMetrics.density
     private fun dp(value: Float): Int = (value * density).roundToInt()
 
@@ -155,12 +160,10 @@ internal class OverlayManager(
         val s = session ?: return
         val canvas = displaySize()
         if (s.script.canvas != canvas) s.script = s.script.fittedTo(canvas)
+        s.controlsLayout = controlsLayoutFor(s)
         pathLayer?.resize(canvas.width, canvas.height)
         syncMarkers()
-        controls?.let { window ->
-            val (x, y) = clampControls(window.params.x, window.params.y)
-            window.moveTo(x, y)
-        }
+        keepControlsOnScreen()
     }
 
     // endregion
@@ -168,6 +171,7 @@ internal class OverlayManager(
     // region Session lifecycle
 
     private fun start(s: OverlaySession) {
+        s.controlsLayout = controlsLayoutFor(s)
         val lifecycle = OverlayLifecycleOwner().also { it.start() }
         owner = lifecycle
         session = s
@@ -215,6 +219,7 @@ internal class OverlayManager(
         val previous = s.settings
         s.settings = settings
         if (previous.markerSizeDp != settings.markerSizeDp) syncMarkers()
+        if (previous.controlSize != settings.controlSize) s.controlsLayout = controlsLayoutFor(s)
         if (previous.keepScreenOn != settings.keepScreenOn) controls?.setKeepScreenOn(settings.keepScreenOn)
     }
 
@@ -452,29 +457,29 @@ internal class OverlayManager(
      */
     private fun moveControlsAwayFromTargets(s: OverlaySession) {
         val window = controls ?: return
-        val width = window.view.width.takeIf { it > 0 } ?: return
-        val collapsedHeight = dp(COLLAPSED_CONTROLS_DP)
+        // Collapsed, the controls are just the play button's square at their top-left corner.
+        val side = dp(ControlsLayout.COLLAPSED_DP * s.controlsLayout.scale)
         val canvas = displaySize()
         val margin = dp(12f)
         val points = targetPoints(s.script)
         fun clearAt(x: Int, y: Int): Boolean {
-            val rect = Rect(x - margin, y - margin, x + width + margin, y + collapsedHeight + margin)
+            val rect = Rect(x - margin, y - margin, x + side + margin, y + side + margin)
             return points.none { rect.contains(it.x.roundToInt(), it.y.roundToInt()) }
         }
         val x = window.params.x
         val y = window.params.y
         if (clearAt(x, y)) return
         val edge = dp(12f)
-        val farX = if (x + width / 2 < canvas.width / 2) canvas.width - width - edge else edge
+        val farX = if (x + side / 2 < canvas.width / 2) canvas.width - side - edge else edge
         val candidates = listOf(
             farX to y,
             x to dp(96f),
             farX to dp(96f),
-            x to canvas.height - collapsedHeight - dp(96f),
-            farX to canvas.height - collapsedHeight - dp(96f),
+            x to canvas.height - side - dp(96f),
+            farX to canvas.height - side - dp(96f),
         )
         candidates.firstOrNull { (cx, cy) -> clearAt(cx, cy) }?.let { (cx, cy) ->
-            val (clampedX, clampedY) = clampControls(cx, cy)
+            val (clampedX, clampedY) = clampControls(cx, cy, side to side)
             window.moveTo(clampedX, clampedY)
         }
     }
@@ -519,6 +524,7 @@ internal class OverlayManager(
         val frame = DragFrame(
             context,
             interceptOnlyDrags = true,
+            measureUnbounded = true,
             listener = object : DragFrame.Listener {
                 override fun onDragStart() {
                     startX = window.params.x
@@ -542,6 +548,13 @@ internal class OverlayManager(
             composeView { Themed(s) { ControlBar(s, controlActions) } },
             ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT),
         )
+        // Stay on screen whenever the controls change size: when they turn or rescale with the
+        // screen or the control size, and when they expand again after a run.
+        frame.addOnLayoutChangeListener { view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
+                view.post { keepControlsOnScreen() }
+            }
+        }
         val params = OverlayWindow.params(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -549,22 +562,47 @@ internal class OverlayManager(
         )
         val canvas = displaySize()
         val settings = s.settings
-        params.x = if (settings.controlsX >= 0) settings.controlsX else dp(8f)
-        params.y = if (settings.controlsY >= 0) settings.controlsY else (canvas.height * 0.22f).roundToInt()
-        params.x = params.x.coerceIn(0, (canvas.width - dp(72f)).coerceAtLeast(0))
-        params.y = params.y.coerceIn(0, (canvas.height - dp(120f)).coerceAtLeast(0))
+        val savedX = if (settings.controlsX >= 0) settings.controlsX else dp(8f)
+        val savedY = if (settings.controlsY >= 0) settings.controlsY else (canvas.height * 0.22f).roundToInt()
+        val (x, y) = clampControls(savedX, savedY, expandedControlsSize(s))
+        params.x = x
+        params.y = y
         window = OverlayWindow(windowManager, frame, params)
         window.setKeepScreenOn(settings.keepScreenOn)
         return window
     }
 
-    private fun clampControls(x: Int, y: Int): Pair<Int, Int> {
-        val window = controls
+    /** Keeps controls of the given [size] on screen; by default, their current size. */
+    private fun clampControls(x: Int, y: Int, size: Pair<Int, Int> = controlsSize()): Pair<Int, Int> {
         val canvas = displaySize()
-        val width = window?.view?.width?.takeIf { it > 0 } ?: dp(72f)
-        val height = window?.view?.height?.takeIf { it > 0 } ?: dp(120f)
+        val (width, height) = size
         return x.coerceIn(0, (canvas.width - width).coerceAtLeast(0)) to
             y.coerceIn(0, (canvas.height - height).coerceAtLeast(0))
+    }
+
+    private fun keepControlsOnScreen() {
+        val window = controls ?: return
+        val (x, y) = clampControls(window.params.x, window.params.y)
+        window.moveTo(x, y)
+    }
+
+    /** The controls' measured size, or their expanded size until they have been measured. */
+    private fun controlsSize(): Pair<Int, Int> {
+        val view = controls?.view
+        if (view != null && view.width > 0 && view.height > 0) return view.width to view.height
+        return session?.let(::expandedControlsSize) ?: (0 to 0)
+    }
+
+    private fun expandedControlsSize(s: OverlaySession): Pair<Int, Int> {
+        val layout = s.controlsLayout
+        val length = dp(ControlsLayout.lengthDp(s.mode) * layout.scale)
+        val thickness = dp(ControlsLayout.COLLAPSED_DP * layout.scale)
+        return if (layout.vertical) thickness to length else length to thickness
+    }
+
+    private fun controlsLayoutFor(s: OverlaySession): ControlsLayout {
+        val canvas = displaySize()
+        return ControlsLayout.choose(canvas.width / density, canvas.height / density, s.mode, s.settings.controlSize)
     }
 
     /** Keeps the controls above newly added target windows. */
@@ -755,7 +793,5 @@ internal class OverlayManager(
         const val MIN_PULSE_GAP_MS = 70L
         const val MAX_PULSES = 12
         const val SWIPE_SAMPLES = 12
-        /** Height of the controls while running: the play button and its status label. */
-        const val COLLAPSED_CONTROLS_DP = 112f
     }
 }

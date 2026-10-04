@@ -48,6 +48,7 @@ import io.github.syntaxghost404.tappilot.core.model.Script
 import io.github.syntaxghost404.tappilot.core.model.Step
 import io.github.syntaxghost404.tappilot.core.model.StopRule
 import io.github.syntaxghost404.tappilot.core.model.Variation
+import io.github.syntaxghost404.tappilot.service.OverlayStatus
 import io.github.syntaxghost404.tappilot.service.TapPilotRuntime
 import io.github.syntaxghost404.tappilot.ui.components.RenameDialog
 import io.github.syntaxghost404.tappilot.ui.navigation.About
@@ -419,6 +420,7 @@ private fun AppNavigation(
                 val viewModel = graphViewModel { SettingsViewModel(it) }
                 val library = graphViewModel(key = "settings-library") { SequencesViewModel(it) }
                 val current by viewModel.settings.collectAsStateWithLifecycle()
+                val status by TapPilotRuntime.status.collectAsStateWithLifecycle()
                 val snackbar = remember { SnackbarHostState() }
                 MessagesEffect(library.messages, snackbar)
                 val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(BACKUP_MIME)) { uri ->
@@ -429,6 +431,7 @@ private fun AppNavigation(
                 }
                 SettingsScreen(
                     settings = current,
+                    runActive = (status as? OverlayStatus.Visible)?.running == true,
                     snackbarHostState = snackbar,
                     actions = remember {
                         object : SettingsActions {
@@ -463,6 +466,7 @@ private fun AppNavigation(
                             override fun onDefaultSwipe(ms: Long) {
                                 viewModel.setDefaultSwipe(ms)
                             }
+                            override fun onStopRun() = TapPilotRuntime.stopRun()
                             override fun onExportAll() {
                                 library.prepareExport(null)
                                 exporter.launch(library.exportFileName(null))

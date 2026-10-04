@@ -57,6 +57,8 @@ internal class OverlaySession(
     var progress by mutableStateOf(RunProgress())
     var activeStepId by mutableStateOf<String?>(null)
     var dialog by mutableStateOf<OverlayDialog?>(null)
+    /** Direction and scale of the floating controls on the current screen. */
+    var controlsLayout by mutableStateOf(ControlsLayout.Default)
     /** Bumped each time a run reaches its limit, so the play button can celebrate briefly. */
     var finishedCount by mutableIntStateOf(0)
     val pulses = mutableStateListOf<Pulse>()

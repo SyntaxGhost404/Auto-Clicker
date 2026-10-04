@@ -33,6 +33,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowChoreographer
+import org.robolectric.shadows.ShadowStatsLog
 import java.time.Duration
 
 /** Drives the real overlay manager inside a Robolectric accessibility service. */
@@ -52,8 +53,10 @@ class OverlayManagerTest {
 
     @Before
     fun setUp() {
-        // Pace frames like a 60 Hz display; Robolectric's default 1 ms frame delay renders every
-        // window a thousand times per simulated second.
+        // Pace frames like a 60 Hz display, delivered only as the test advances the clock. Unpaused,
+        // Robolectric runs each requested frame at once and moves the clock itself, so continuous
+        // animations such as a running play button race the clock ahead.
+        ShadowChoreographer.setPaused(true)
         ShadowChoreographer.setFrameDelay(Duration.ofMillis(16))
         service = Robolectric.setupService(TapPilotAccessibilityService::class.java)
         manager = OverlayManager(service, service.appGraph, dispatcher)
@@ -66,7 +69,15 @@ class OverlayManagerTest {
     }
 
     private fun idle(millis: Long = 50) {
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(millis))
+        var left = millis
+        while (left > 0) {
+            val step = minOf(left, 100L)
+            // Robolectric records a stats event per window frame in a copy-on-write list, which
+            // makes long animated runs quadratic; nothing here reads it.
+            ShadowStatsLog.reset()
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(step))
+            left -= step
+        }
     }
 
     /** Lets main-thread work and DataStore's background writes settle until [done] holds. */

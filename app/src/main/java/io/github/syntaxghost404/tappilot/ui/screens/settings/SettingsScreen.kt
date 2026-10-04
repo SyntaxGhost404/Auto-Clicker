@@ -1,5 +1,10 @@
 package io.github.syntaxghost404.tappilot.ui.screens.settings
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,8 +27,10 @@ import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.PrivacyTip
+import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -35,6 +42,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,7 +56,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalResources
@@ -112,6 +122,7 @@ interface SettingsActions {
     fun onDefaultDelay(ms: Long)
     fun onDefaultHold(ms: Long)
     fun onDefaultSwipe(ms: Long)
+    fun onStopRun()
     fun onExportAll()
     fun onImport()
     fun onHowTo()
@@ -121,8 +132,17 @@ interface SettingsActions {
 
 private enum class DefaultField { Delay, Hold, Swipe }
 
+/**
+ * App settings. While a run is tapping ([runActive]) the floating controls settings are locked, so
+ * the controls can't change under it.
+ */
 @Composable
-fun SettingsScreen(settings: AppSettings?, actions: SettingsActions, snackbarHostState: SnackbarHostState) {
+fun SettingsScreen(
+    settings: AppSettings?,
+    actions: SettingsActions,
+    snackbarHostState: SnackbarHostState,
+    runActive: Boolean = false,
+) {
     var editing by rememberSaveable { mutableStateOf<DefaultField?>(null) }
     TopLevelScaffold(
         current = Settings,
@@ -146,7 +166,7 @@ fun SettingsScreen(settings: AppSettings?, actions: SettingsActions, snackbarHos
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
             appearance(settings, actions)
-            controls(settings, actions)
+            controls(settings, runActive, actions)
             running(settings, actions)
             defaults(settings, onEdit = { editing = it })
             backup(actions)
@@ -225,11 +245,21 @@ private fun LazyListScope.appearance(settings: AppSettings, actions: SettingsAct
     }
 }
 
-private fun LazyListScope.controls(settings: AppSettings, actions: SettingsActions) {
-    group("controls", R.string.settings_controls)
+private fun LazyListScope.controls(settings: AppSettings, runActive: Boolean, actions: SettingsActions) {
+    item(key = "controls") {
+        Column {
+            SectionTitle(stringResource(R.string.settings_controls), Modifier.padding(top = 20.dp))
+            ControlsLockedNotice(visible = runActive, onStop = actions::onStopRun)
+        }
+    }
+    val enabled = !runActive
     item(key = "control-size") {
         SegmentedPanel(index = 0, count = 4) {
-            Text(stringResource(R.string.settings_control_size), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(R.string.settings_control_size),
+                style = MaterialTheme.typography.bodyLarge,
+                color = panelTextColor(enabled, Color.Unspecified),
+            )
             Spacer(Modifier.height(12.dp))
             ConnectedChoiceGroup(
                 options = ControlSize.entries,
@@ -245,10 +275,11 @@ private fun LazyListScope.controls(settings: AppSettings, actions: SettingsActio
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
+                enabled = enabled,
             )
         }
     }
-    item(key = "marker-size") { MarkerSizePanel(settings.markerSizeDp, actions::onMarkerSize) }
+    item(key = "marker-size") { MarkerSizePanel(settings.markerSizeDp, enabled, actions::onMarkerSize) }
     item(key = "feedback") {
         SwitchItem(
             index = 2, count = 4,
@@ -256,6 +287,7 @@ private fun LazyListScope.controls(settings: AppSettings, actions: SettingsActio
             supporting = stringResource(R.string.settings_tap_feedback_support),
             checked = settings.tapFeedback,
             onCheckedChange = actions::onTapFeedback,
+            enabled = enabled,
         )
     }
     item(key = "keep-on") {
@@ -265,38 +297,107 @@ private fun LazyListScope.controls(settings: AppSettings, actions: SettingsActio
             supporting = stringResource(R.string.settings_keep_screen_on_support),
             checked = settings.keepScreenOn,
             onCheckedChange = actions::onKeepScreenOn,
+            enabled = enabled,
         )
     }
 }
 
+/** Explains why the floating controls settings are locked during a run and offers to stop it. */
 @Composable
-private fun MarkerSizePanel(sizeDp: Int, onChange: (Int) -> Unit) {
+private fun ControlsLockedNotice(visible: Boolean, onStop: () -> Unit) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+            expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
+            shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
+    ) {
+        val colors = MaterialTheme.colorScheme
+        Surface(
+            shape = MaterialTheme.shapes.large,
+            color = colors.secondaryContainer,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+        ) {
+            Row(
+                modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 12.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Rounded.Lock, contentDescription = null)
+                Spacer(Modifier.size(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.settings_controls_locked_title), style = MaterialTheme.typography.titleSmallEmphasized)
+                    Text(
+                        stringResource(R.string.settings_controls_locked_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSecondaryContainer.copy(alpha = 0.85f),
+                    )
+                }
+                Spacer(Modifier.size(12.dp))
+                Button(
+                    onClick = onStop,
+                    shapes = ButtonDefaults.shapes(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.onSecondaryContainer,
+                        contentColor = colors.secondaryContainer,
+                    ),
+                ) {
+                    Icon(Icons.Rounded.Stop, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                    Text(stringResource(R.string.action_stop))
+                }
+            }
+        }
+    }
+}
+
+/** Text colour inside a settings panel, faded like a disabled list item when [enabled] is false. */
+@Composable
+private fun panelTextColor(enabled: Boolean, color: Color): Color =
+    if (enabled) color else MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED_ALPHA)
+
+private const val DISABLED_ALPHA = 0.38f
+
+@Composable
+private fun MarkerSizePanel(sizeDp: Int, enabled: Boolean, onChange: (Int) -> Unit) {
     val steps = (AppSettings.MAX_MARKER_DP - AppSettings.MIN_MARKER_DP) / 4 - 1
     val state = rememberSliderState(
         value = sizeDp.toFloat(),
         steps = steps,
         trackRange = AppSettings.MIN_MARKER_DP.toFloat()..AppSettings.MAX_MARKER_DP.toFloat(),
     )
-    LaunchedEffect(sizeDp) {
+    // Locking mid-drag drops the unsaved value.
+    LaunchedEffect(sizeDp, enabled) {
         if (state.value.roundToInt() != sizeDp) state.value = sizeDp.toFloat()
     }
     val previewDp = state.value.roundToInt()
     SegmentedPanel(index = 1, count = 4) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.settings_target_size), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    stringResource(R.string.settings_target_size),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = panelTextColor(enabled, Color.Unspecified),
+                )
                 Text(
                     stringResource(R.string.settings_target_size_value, previewDp),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = panelTextColor(enabled, MaterialTheme.colorScheme.onSurfaceVariant),
                 )
             }
-            Box(Modifier.size(AppSettings.MAX_MARKER_DP.dp), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(AppSettings.MAX_MARKER_DP.dp)
+                    .alpha(if (enabled) 1f else DISABLED_ALPHA),
+                contentAlignment = Alignment.Center,
+            ) {
                 MarkerPreview(previewDp)
             }
         }
         Slider(
             state = state,
+            enabled = enabled,
             onValueChange = { state.value = it },
             onValueChangeFinished = { onChange(state.value.roundToInt()) },
         )
@@ -407,12 +508,14 @@ private fun SwitchItem(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     icon: ImageVector? = null,
+    enabled: Boolean = true,
 ) {
     // Neutral container in both states: the switch already shows the state, so the row stays calm.
     val neutral = ListItemDefaults.segmentedColors()
     SegmentedListItem(
         checked = checked,
         onCheckedChange = onCheckedChange,
+        enabled = enabled,
         shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
         colors = ListItemDefaults.segmentedColors(
             selectedContainerColor = neutral.containerColor,
@@ -423,7 +526,7 @@ private fun SwitchItem(
         ),
         leadingContent = icon?.let { { Icon(it, contentDescription = null) } },
         supportingContent = supporting?.let { { Text(it) } },
-        trailingContent = { Switch(checked = checked, onCheckedChange = null) },
+        trailingContent = { Switch(checked = checked, onCheckedChange = null, enabled = enabled) },
     ) { Text(title) }
 }
 

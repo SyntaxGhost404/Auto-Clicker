@@ -15,12 +15,17 @@ import kotlin.math.hypot
  *
  * With [interceptOnlyDrags] children still receive taps (the control bar's buttons); otherwise the
  * frame consumes every touch and reports taps through [Listener.onTap] (target markers).
+ *
+ * With [measureUnbounded] the content is measured at its natural size. A wrap-content window is
+ * otherwise measured against the screen minus the system bars, and on phones first against the
+ * platform's preferred dialog width of 320 dp, either of which would crop the floating controls.
  */
 @SuppressLint("ViewConstructor")
 internal class DragFrame(
     context: Context,
     private val interceptOnlyDrags: Boolean,
     private val listener: Listener,
+    private val measureUnbounded: Boolean = false,
 ) : FrameLayout(context) {
 
     interface Listener {
@@ -36,6 +41,12 @@ internal class DragFrame(
     private var downX = 0f
     private var downY = 0f
     private var dragging = false
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        if (!measureUnbounded) return super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        val unbounded = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        super.onMeasure(unbounded, unbounded)
+    }
 
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
         if (!interceptOnlyDrags) return true
